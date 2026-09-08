@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="JerseyConnect capstone docs" version="24.0.0" type="device">
+  <diagram id="software-architecture" name="3.7 Software Architecture (MVC + Inertia)">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="650" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="sa_title" value="JerseyConnect — Software Architecture (MVC pattern with Inertia.js bridge)" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="0" width="720" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sa_presentation" value="Presentation Layer — Vue 3 SPA (Inertia Pages)&#10;&#10;Client Pages | Admin Pages | Auth Pages | Shared Components" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="720" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sa_bridge" value="Inertia.js Bridge — server-driven SPA navigation (no separate REST/JSON API)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="720" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sa_application" value="Application Layer — Laravel 13&#10;Routes  →  Middleware (auth, admin, client, throttle)  →  Controllers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="720" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sa_domain" value="Domain Layer — Eloquent Models&#10;User · Jersey · DesignRequest · Order · Address · Courier · CourierReceipt · GcashSetting · MessageThread · Message" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="720" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sa_data" value="Data Layer — MySQL Database  +  Public File Storage (jersey images, payment proofs, GCash QR, chat attachments)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="430" width="720" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sa_e1" value="request" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;startArrow=none;fontSize=10;" edge="1" parent="1" source="sa_presentation" target="sa_bridge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sa_e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;startArrow=none;fontSize=10;" edge="1" parent="1" source="sa_bridge" target="sa_application">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sa_e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;startArrow=none;fontSize=10;" edge="1" parent="1" source="sa_application" target="sa_domain">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sa_e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;startArrow=none;fontSize=10;" edge="1" parent="1" source="sa_domain" target="sa_data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sa_e5" value="response (props + page component)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;startArrow=none;dashed=1;fontSize=10;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="sa_data" target="sa_presentation">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20" y="465" />
+              <mxPoint x="20" y="85" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
