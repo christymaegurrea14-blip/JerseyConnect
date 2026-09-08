@@ -222,7 +222,10 @@ function editRequest(row: DesignRequest) {
 
     editForm.id = row.id;
     editForm.name = row.template_name;
-    editForm.quantity = row.estimated_quantity.toString();
+    editForm.quantity =
+        row.estimated_quantity != null
+            ? row.estimated_quantity.toString()
+            : "";
     editForm.primary_color = row.primary_color;
     editForm.secondary_color = row.secondary_color;
     editForm.accent_color = row.accent_color;

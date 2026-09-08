@@ -26,7 +26,7 @@ const props = withDefaults(
 // Threads/messages are fully server-driven now — no local mock data and no
 // client-side stub creation. A thread always exists once a design request
 // has been submitted (created server-side in DesignRequest::booted()).
-usePoll(5000, { only: ["threads"] });
+usePoll(1500, { only: ["threads"] });
 
 // ── State ────────────────────────────────────────────────────────────────────
 type TabKey = "all" | "design" | "order";

@@ -718,21 +718,15 @@ function onKeydown(e: KeyboardEvent) {
                     tracking link in your orders.
                 </p>
                 <div
+                    v-if="$page.props.auth.user"
                     class="mt-8 flex flex-wrap items-center justify-center gap-4"
                 >
                     <Link
-                        v-if="canRegister"
-                        :href="route('register')"
+                        :href="route('client.home.index')"
                         class="inline-flex items-center justify-center bg-accent text-white font-semibold px-6 py-3.5 rounded-md hover:bg-accent-dark transition-colors"
                     >
-                        Create an account
-                    </Link>
-                    <Link
-                        v-if="canLogin"
-                        :href="route('login')"
-                        class="inline-flex items-center justify-center border border-paper/20 text-paper font-semibold px-6 py-3.5 rounded-md hover:bg-paper/10 transition-colors"
-                    >
-                        Log in
+                        Back
+                        <font-awesome-icon icon="fa-solid fa-angles-right" />
                     </Link>
                 </div>
             </div>

@@ -1,11 +1,33 @@
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
-// Import icon packs you need
-import { fas } from '@fortawesome/free-solid-svg-icons'
-import { far } from '@fortawesome/free-regular-svg-icons'
-import { fab } from '@fortawesome/free-brands-svg-icons'
+// Only the specific icons actually used across the app are imported here.
+// Importing the full `fas`/`far`/`fab` packs (as before) pulls in every icon
+// in each set — thousands of unused SVGs — and was the main contributor to
+// the ~2MB main bundle. Add new icons to both the import and library.add()
+// below when a new `fa-solid fa-*` name is introduced in a page/component.
+import {
+    faAnglesLeft, faAnglesRight, faArrowRight, faArrowUpRightFromSquare, faBars, faBox,
+    faCalendarXmark, faCartShopping, faCheck, faChevronDown, faChevronLeft, faChevronRight,
+    faCircleDown, faCircleInfo, faCloudArrowUp, faComments, faCreditCard, faEdit,
+    faEnvelope, faEye, faHourglassHalf, faIdCard, faImage, faInbox,
+    faLink, faLocationCrosshairs, faLocationDot, faLock, faMagnifyingGlass, faMessage,
+    faMoneyBillWave, faNewspaper, faPaperPlane, faPlusCircle, faReceipt, faRightFromBracket,
+    faShirt, faShoppingBasket, faSpinner, faSprayCanSparkles, faTachographDigital, faThumbsUp,
+    faTrash, faTriangleExclamation, faTruck, faTruckFast, faTshirt, faUpload, faUserCircle,
+    faUserPlus, faUsers, faUserTie, faWallet, faXmark, faXmarkCircle,
+} from '@fortawesome/free-solid-svg-icons'
 
-library.add(fas, far, fab)
+library.add(
+    faAnglesLeft, faAnglesRight, faArrowRight, faArrowUpRightFromSquare, faBars, faBox,
+    faCalendarXmark, faCartShopping, faCheck, faChevronDown, faChevronLeft, faChevronRight,
+    faCircleDown, faCircleInfo, faCloudArrowUp, faComments, faCreditCard, faEdit,
+    faEnvelope, faEye, faHourglassHalf, faIdCard, faImage, faInbox,
+    faLink, faLocationCrosshairs, faLocationDot, faLock, faMagnifyingGlass, faMessage,
+    faMoneyBillWave, faNewspaper, faPaperPlane, faPlusCircle, faReceipt, faRightFromBracket,
+    faShirt, faShoppingBasket, faSpinner, faSprayCanSparkles, faTachographDigital, faThumbsUp,
+    faTrash, faTriangleExclamation, faTruck, faTruckFast, faTshirt, faUpload, faUserCircle,
+    faUserPlus, faUsers, faUserTie, faWallet, faXmark, faXmarkCircle,
+)
 
 export { FontAwesomeIcon }

@@ -6,7 +6,7 @@ const unreadMessagesCount = computed(
     () => (page.props.unreadMessagesCount as number) ?? 0,
 );
 
-usePoll(15000, { only: ["unreadMessagesCount"] });
+usePoll(3000, { only: ["unreadMessagesCount"] });
 
 const isShowSideBar = ref(true);
 const page = usePage();
@@ -18,7 +18,7 @@ const sidebarMenus = [
         icon: "fa-solid fa-tachograph-digital",
     },
     {
-        menuName: "My Design Requests",
+        menuName: "All Designs",
         route: route("client.design.index"),
         icon: "fa-solid fa-tshirt",
     },

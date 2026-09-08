@@ -4,7 +4,7 @@ import { Link, usePage, usePoll } from "@inertiajs/vue3";
 
 const unreadMessagesCount = computed(() => page.props.unreadMessagesCount ?? 0);
 
-usePoll(15000, { only: ["unreadMessagesCount"] });
+usePoll(3000, { only: ["unreadMessagesCount"] });
 
 const isShowSideBar = ref(true);
 const page = usePage();
@@ -22,7 +22,7 @@ const sidebarMenus = [
         hasBadge: true,
     },
     {
-        menuName: "Design Requests",
+        menuName: "Designs",
         route: route("admin.design.index"),
         icon: "fa-solid fa-spray-can-sparkles",
         hasBadge: true,
