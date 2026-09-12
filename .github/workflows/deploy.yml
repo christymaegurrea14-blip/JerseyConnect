@@ -48,6 +48,7 @@ jobs:
             --exclude='.env' \
             --exclude='node_modules/' \
             --exclude='storage/app/public/' \
+            --exclude='public/storage' \
             --exclude='storage/logs/' \
             --exclude='storage/framework/cache/' \
             --exclude='storage/framework/sessions/' \
@@ -60,7 +61,7 @@ jobs:
             set -e
             cd "${{ secrets.REMOTE_PATH }}"
             php artisan migrate --force
-            php artisan storage:link || true
+            ln -sfn ../storage/app/public public/storage
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
