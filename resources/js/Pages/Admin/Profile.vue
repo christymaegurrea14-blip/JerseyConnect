@@ -39,98 +39,71 @@ const submitCredentials = () => {
     <Head title="Profile" />
 
     <AdminLayout>
-        <div class="flex flex-col sm:flex-row gap-3 mx-auto">
-            <div class="w-full">
-                <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900">
-                        <h1 class="sm:text-xl font-bold">
-                            <font-awesome-icon icon="fa-solid fa-circle-info" />
+        <div class="flex flex-col sm:flex-row gap-5 mx-auto">
+            <div class="w-full space-y-5">
+                <div class="glass-panel rounded-2xl">
+                    <div class="p-6 text-slate-200">
+                        <h1 class="sm:text-xl font-bold text-white">
+                            <font-awesome-icon icon="fa-solid fa-circle-info" class="text-indigo-400" />
                             Information
                         </h1>
                         <form @submit.prevent="submitInformation">
                             <div class="mt-3">
-                                <InputLabel
-                                    for="first_name"
-                                    value="First Name"
-                                />
+                                <InputLabel for="first_name" value="First Name" class="!text-slate-300" />
                                 <TextInput
                                     id="first_name"
                                     type="text"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_information.first_name"
                                     required
                                     autocomplete="first_name"
                                     placeholder="e.g. Alex"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="
-                                        user_information.errors.first_name
-                                    "
-                                />
+                                <InputError class="mt-2" :message="user_information.errors.first_name" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel
-                                    for="middle_name"
-                                    value="Middle Name"
-                                />
+                                <InputLabel for="middle_name" value="Middle Name" class="!text-slate-300" />
                                 <TextInput
                                     id="middle_name"
                                     type="text"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_information.middle_name"
                                     autocomplete="middle_name"
                                     placeholder="e.g. Alexey"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="
-                                        user_information.errors.middle_name
-                                    "
-                                />
+                                <InputError class="mt-2" :message="user_information.errors.middle_name" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel for="last_name" value="Last Name" />
+                                <InputLabel for="last_name" value="Last Name" class="!text-slate-300" />
                                 <TextInput
                                     id="last_name"
                                     type="text"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_information.last_name"
                                     required
                                     autocomplete="last_name"
                                     placeholder="e.g. Doe"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="user_information.errors.last_name"
-                                />
+                                <InputError class="mt-2" :message="user_information.errors.last_name" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel
-                                    for="birth_date"
-                                    value="Birth Date"
-                                />
+                                <InputLabel for="birth_date" value="Birth Date" class="!text-slate-300" />
                                 <TextInput
                                     id="birth_date"
                                     type="date"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_information.birth_date"
                                     required
                                     autocomplete="birth_date"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="
-                                        user_information.errors.birth_date
-                                    "
-                                />
+                                <InputError class="mt-2" :message="user_information.errors.birth_date" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel for="phone" value="Phone" />
+                                <InputLabel for="phone" value="Phone" class="!text-slate-300" />
                                 <TextInput
                                     id="phone"
                                     type="tel"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_information.phone"
                                     required
                                     autocomplete="phone"
@@ -138,51 +111,30 @@ const submitCredentials = () => {
                                     pattern="^9\d{9}$"
                                     maxlength="10"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="user_information.errors.phone"
-                                />
+                                <InputError class="mt-2" :message="user_information.errors.phone" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel for="address" value="Address" />
+                                <InputLabel for="address" value="Address" class="!text-slate-300" />
                                 <TextInput
                                     id="address"
                                     type="text"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_information.address"
                                     required
                                     autocomplete="address"
                                     placeholder="e.g. Pob. Talibon, Bohol"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="user_information.errors.address"
-                                />
+                                <InputError class="mt-2" :message="user_information.errors.address" />
                             </div>
                             <div class="mt-3 flex items-center justify-center">
                                 <PrimaryButton
-                                    :class="{
-                                        'opacity-25':
-                                            user_information.processing,
-                                    }"
-                                    :disabled="
-                                        user_information.processing ||
-                                        user_credentials.processing
-                                    "
+                                    :class="{ 'opacity-25': user_information.processing }"
+                                    :disabled="user_information.processing || user_credentials.processing"
                                 >
-                                    <div
-                                        class="text-sm"
-                                        v-if="user_information.processing"
-                                    >
-                                        <font-awesome-icon
-                                            icon="fa-solid fa-spinner"
-                                            spin
-                                        />
+                                    <div class="text-sm" v-if="user_information.processing">
+                                        <font-awesome-icon icon="fa-solid fa-spinner" spin />
                                     </div>
-                                    <font-awesome-icon
-                                        class="mx-1"
-                                        icon="fa-solid fa-paper-plane"
-                                    />
+                                    <font-awesome-icon class="mx-1" icon="fa-solid fa-paper-plane" />
                                     Save Information
                                 </PrimaryButton>
                             </div>
@@ -190,91 +142,57 @@ const submitCredentials = () => {
                     </div>
                 </div>
 
-                <div
-                    class="overflow-hidden bg-white mt-4 shadow-sm sm:rounded-lg"
-                >
-                    <div class="p-6 text-gray-900">
-                        <h1 class="sm:text-xl font-bold">
-                            <font-awesome-icon icon="fa-solid fa-id-card" />
+                <div class="glass-panel rounded-2xl">
+                    <div class="p-6 text-slate-200">
+                        <h1 class="sm:text-xl font-bold text-white">
+                            <font-awesome-icon icon="fa-solid fa-id-card" class="text-indigo-400" />
                             Credentials
                         </h1>
                         <form @submit.prevent="submitCredentials">
                             <div class="mt-3">
-                                <InputLabel for="email" value="Email" />
+                                <InputLabel for="email" value="Email" class="!text-slate-300" />
                                 <TextInput
                                     id="email"
                                     type="email"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_credentials.email"
                                     required
                                     autocomplete="username"
                                     placeholder="e.g. alex@gmail.com"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="user_credentials.errors.email"
-                                />
+                                <InputError class="mt-2" :message="user_credentials.errors.email" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel for="password" value="Password" />
+                                <InputLabel for="password" value="Password" class="!text-slate-300" />
                                 <TextInput
                                     id="password"
                                     type="password"
-                                    class="mt-1 block w-full"
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
                                     v-model="user_credentials.password"
                                     autocomplete="new-password"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="user_credentials.errors.password"
-                                />
+                                <InputError class="mt-2" :message="user_credentials.errors.password" />
                             </div>
                             <div class="mt-3">
-                                <InputLabel
-                                    for="password_confirmation"
-                                    value="Confirm Password"
-                                />
+                                <InputLabel for="password_confirmation" value="Confirm Password" class="!text-slate-300" />
                                 <TextInput
                                     id="password_confirmation"
                                     type="password"
-                                    class="mt-1 block w-full"
-                                    v-model="
-                                        user_credentials.password_confirmation
-                                    "
+                                    class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200"
+                                    v-model="user_credentials.password_confirmation"
                                     autocomplete="new-password"
                                 />
-                                <InputError
-                                    class="mt-2"
-                                    :message="
-                                        user_credentials.errors
-                                            .password_confirmation
-                                    "
-                                />
+                                <InputError class="mt-2" :message="user_credentials.errors.password_confirmation" />
                             </div>
                             <div class="mt-3 flex items-center justify-center">
                                 <PrimaryButton
-                                    :class="{
-                                        'opacity-25':
-                                            user_credentials.processing,
-                                    }"
-                                    :disabled="
-                                        user_credentials.processing ||
-                                        user_information.processing
-                                    "
+                                    :class="{ 'opacity-25': user_credentials.processing }"
+                                    :disabled="user_credentials.processing || user_information.processing"
                                 >
-                                    <div
-                                        class="text-sm"
-                                        v-if="user_credentials.processing"
-                                    >
-                                        <font-awesome-icon
-                                            icon="fa-solid fa-spinner"
-                                            spin
-                                        />
+                                    <div class="text-sm" v-if="user_credentials.processing">
+                                        <font-awesome-icon icon="fa-solid fa-spinner" spin />
                                     </div>
-                                    <font-awesome-icon
-                                        class="me-1"
-                                        icon="fa-solid fa-paper-plane"
-                                    />
+                                    <font-awesome-icon class="me-1" icon="fa-solid fa-paper-plane" />
                                     Save Credentials
                                 </PrimaryButton>
                             </div>
@@ -285,3 +203,12 @@ const submitCredentials = () => {
         </div>
     </AdminLayout>
 </template>
+
+<style scoped>
+.glass-panel {
+    background: linear-gradient(145deg, rgba(18, 24, 39, 0.85) 0%, rgba(13, 17, 28, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+</style>

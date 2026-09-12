@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import Table from "@/Components/Table.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
@@ -11,7 +10,7 @@ import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
 import { useModal } from "@/Composables/useModal";
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 type CourierStatus = "active" | "inactive";
 
@@ -28,28 +27,27 @@ const props = defineProps<{
     couriers: Courier[];
 }>();
 
+const activeCount = computed(
+    () => props.couriers.filter((c) => c.status === "active").length,
+);
+const inactiveCount = computed(
+    () => props.couriers.filter((c) => c.status === "inactive").length,
+);
+
 const courierStatus: Record<CourierStatus, { label: string; class: string }> = {
     active: {
         label: "Active",
-        class: "bg-green-100 text-green-700",
+        class: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
     },
     inactive: {
         label: "Inactive",
-        class: "bg-red-100 text-red-700",
+        class: "bg-rose-500/15 text-rose-300 border-rose-500/25",
     },
 };
 
 const statusOptions = [
     { value: "active", label: "Active" },
     { value: "inactive", label: "Inactive" },
-];
-
-const columns = [
-    { key: "name", label: "Courier" },
-    { key: "site", label: "Site", slot: "site" },
-    { key: "status", label: "Status", slot: "status" },
-    { key: "created_at", label: "Created", slot: "date" },
-    { key: "actions", label: "Action", slot: "actions" },
 ];
 
 const modal = useModal();
@@ -162,134 +160,122 @@ function submitDelete() {
     <Head title="Couriers" />
 
     <AdminLayout>
-        <div class="bg-white p-4 rounded-lg">
-            <div
-                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-                <h1 class="text-lg font-semibold text-ink">
-                    <font-awesome-icon icon="fa-solid fa-truck-fast" />
-                    Couriers
-                </h1>
+        <div class="space-y-6">
+            <!-- Header -->
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-col gap-1">
+                    <h1 class="text-2xl font-extrabold text-white tracking-tight">Couriers</h1>
+                    <p class="text-sm text-slate-400">
+                        {{ props.couriers.length }} courier{{ props.couriers.length === 1 ? "" : "s" }} total
+                    </p>
+                </div>
+                <PrimaryButton class="flex items-center justify-center gap-1.5 w-full sm:w-auto" @click="openAddModal">
+                    <font-awesome-icon icon="fa-solid fa-plus-circle" />
+                    Add Courier
+                </PrimaryButton>
+            </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <PrimaryButton
-                        class="flex items-center justify-center gap-1 w-full sm:w-auto"
-                        @click="openAddModal"
-                    >
-                        <font-awesome-icon icon="fa-solid fa-plus-circle" />
-                        Add Courier
-                    </PrimaryButton>
+            <!-- Stat cards -->
+            <div class="grid grid-cols-3 gap-3.5">
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">Total couriers</span>
+                    <div class="text-2xl font-bold text-white mt-1.5">{{ props.couriers.length }}</div>
+                </div>
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">Active</span>
+                    <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ activeCount }}</div>
+                </div>
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">Inactive</span>
+                    <div class="text-2xl font-bold text-rose-300 mt-1.5">{{ inactiveCount }}</div>
                 </div>
             </div>
-            <hr class="mb-4 mt-2" />
-            <Table
-                :data="props.couriers"
-                :columns="columns"
-                date-key="created_at"
-            >
-                <template #site="{ row }">
-                    <a
-                        v-if="row.site"
-                        :href="row.site"
-                        target="_blank"
-                        class="text-blue-600 underline"
-                    >
-                        <font-awesome-icon icon="fa-solid fa-link" />
-                        {{ row.name }}
-                    </a>
-                    <span v-else class="text-gray-400">—</span>
-                </template>
 
-                <template #status="{ row }">
-                    <span
-                        class="inline-block rounded-full px-2.5 py-1 text-xs font-medium"
-                        :class="courierStatus[row.status].class"
-                    >
-                        {{ courierStatus[row.status].label }}
-                    </span>
-                </template>
-
-                <template #date="{ row }">
-                    {{ formatDate(row.created_at) }}
-                </template>
-
-                <template #actions="{ row }">
-                    <div class="flex items-center justify-center gap-2">
-                        <button
-                            type="button"
-                            class="text-xs font-medium bg-gray-600 text-white rounded-md px-2 py-2 transition-colors hover:bg-gray-500"
-                            @click="openEditModal(row)"
-                        >
-                            <font-awesome-icon icon="fa-solid fa-edit" />
-                            Edit
-                        </button>
-                        <button
-                            type="button"
-                            class="text-xs font-medium bg-red-600 text-white rounded-md px-2 py-2 transition-colors hover:bg-red-500"
-                            @click="openDeleteModal(row)"
-                        >
-                            <font-awesome-icon icon="fa-solid fa-trash" />
-                            Delete
-                        </button>
-                    </div>
-                </template>
-            </Table>
+            <!-- Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-white/5">
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Courier</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Site</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Created</th>
+                                <th class="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr v-if="props.couriers.length === 0">
+                                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-500">No couriers yet.</td>
+                            </tr>
+                            <tr
+                                v-for="row in props.couriers"
+                                :key="row.id"
+                                class="hover:bg-slate-800/30 transition-colors"
+                            >
+                                <td class="px-4 py-3 font-semibold text-white">{{ row.name }}</td>
+                                <td class="px-4 py-3">
+                                    <a v-if="row.site" :href="row.site" target="_blank" class="text-indigo-400 hover:text-indigo-300">
+                                        <font-awesome-icon icon="fa-solid fa-link" />
+                                        Visit site
+                                    </a>
+                                    <span v-else class="text-slate-600">—</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-block rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="courierStatus[row.status].class">
+                                        {{ courierStatus[row.status].label }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-slate-400">{{ formatDate(row.created_at) }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button
+                                            type="button"
+                                            class="text-xs font-medium bg-slate-800 text-slate-300 border border-white/10 rounded-md px-2 py-2 transition-colors hover:bg-slate-700"
+                                            @click="openEditModal(row)"
+                                        >
+                                            <font-awesome-icon icon="fa-solid fa-edit" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="text-xs font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-md px-2 py-2 transition-colors hover:bg-rose-500/30"
+                                            @click="openDeleteModal(row)"
+                                        >
+                                            <font-awesome-icon icon="fa-solid fa-trash" />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- Add Modal -->
-        <Modal
-            :show="modal.type.value === 'Add'"
-            @close="closeModal()"
-            :maxWidth="'md'"
-        >
-            <form @submit.prevent="submitAdd" class="px-4 pt-5 pb-4 sm:p-6">
-                <h2 class="text-lg font-medium text-gray-900">
-                    <font-awesome-icon icon="fa-solid fa-plus-circle" />
+        <Modal :show="modal.type.value === 'Add'" @close="closeModal()" :maxWidth="'md'">
+            <form @submit.prevent="submitAdd" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
+                <h2 class="text-lg font-semibold text-white">
+                    <font-awesome-icon icon="fa-solid fa-plus-circle" class="text-indigo-400" />
                     {{ modal.title.value }}
                 </h2>
-                <hr class="my-2" />
+                <hr class="my-2 border-white/10" />
                 <div class="flex flex-col gap-4">
                     <div>
-                        <InputLabel for="name" value="Name" />
-                        <TextInput
-                            v-model="addForm.name"
-                            class="mt-1 block w-full"
-                            id="name"
-                            required
-                            placeholder="e.g. DHL"
-                        />
-                        <InputError
-                            :message="addForm.errors.name"
-                            class="mt-2"
-                        />
+                        <InputLabel for="name" value="Name" class="!text-slate-300" />
+                        <TextInput v-model="addForm.name" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="name" required placeholder="e.g. DHL" />
+                        <InputError :message="addForm.errors.name" class="mt-2" />
                     </div>
 
                     <div>
-                        <InputLabel for="site" value="Site" />
-                        <TextAreaInput
-                            v-model="addForm.site"
-                            class="mt-1 block w-full"
-                            id="site"
-                            rows="3"
-                            placeholder="e.g. https://example.com/track?..."
-                        />
-                        <InputError
-                            :message="addForm.errors.site"
-                            class="mt-2"
-                        />
+                        <InputLabel for="site" value="Site" class="!text-slate-300" />
+                        <TextAreaInput v-model="addForm.site" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="site" rows="3" placeholder="e.g. https://example.com/track?..." />
+                        <InputError :message="addForm.errors.site" class="mt-2" />
                     </div>
                 </div>
-                <hr class="mt-4" />
-                <div
-                    class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between"
-                >
-                    <SecondaryButton
-                        type="button"
-                        class="flex items-center justify-center"
-                        @click="closeModal()"
-                    >
-                        Cancel
-                    </SecondaryButton>
+                <hr class="mt-4 border-white/10" />
+                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                    <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
                         type="submit"
@@ -298,10 +284,7 @@ function submitDelete() {
                         :class="{ 'opacity-25': addForm.processing }"
                     >
                         <div class="text-sm" v-if="addForm.processing">
-                            <font-awesome-icon
-                                icon="fa-solid fa-spinner"
-                                spin
-                            />
+                            <font-awesome-icon icon="fa-solid fa-spinner" spin />
                         </div>
                         Save
                         <font-awesome-icon icon="fa-solid fa-circle-down" />
@@ -311,76 +294,37 @@ function submitDelete() {
         </Modal>
 
         <!-- Edit Modal -->
-        <Modal
-            :show="modal.type.value === 'Edit'"
-            @close="closeModal()"
-            :maxWidth="'md'"
-        >
-            <form @submit.prevent="submitEdit" class="px-4 pt-5 pb-4 sm:p-6">
-                <h2 class="text-lg font-medium text-gray-900">
-                    <font-awesome-icon icon="fa-solid fa-edit" />
+        <Modal :show="modal.type.value === 'Edit'" @close="closeModal()" :maxWidth="'md'">
+            <form @submit.prevent="submitEdit" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
+                <h2 class="text-lg font-semibold text-white">
+                    <font-awesome-icon icon="fa-solid fa-edit" class="text-indigo-400" />
                     {{ modal.title.value }}
                 </h2>
-                <hr class="my-2" />
+                <hr class="my-2 border-white/10" />
 
                 <div class="flex flex-col gap-4">
                     <div>
-                        <InputLabel for="edit-name" value="Name" />
-                        <TextInput
-                            v-model="editForm.name"
-                            class="mt-1 block w-full"
-                            id="edit-name"
-                            required
-                            placeholder="e.g. DHL"
-                        />
-                        <InputError
-                            :message="editForm.errors.name"
-                            class="mt-2"
-                        />
+                        <InputLabel for="edit-name" value="Name" class="!text-slate-300" />
+                        <TextInput v-model="editForm.name" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="edit-name" required placeholder="e.g. DHL" />
+                        <InputError :message="editForm.errors.name" class="mt-2" />
                     </div>
 
                     <div>
-                        <InputLabel for="edit-site" value="Site" />
-                        <TextAreaInput
-                            v-model="editForm.site"
-                            class="mt-1 block w-full"
-                            id="edit-site"
-                            rows="3"
-                            placeholder="e.g. https://example.com/track?..."
-                        />
-                        <InputError
-                            :message="editForm.errors.site"
-                            class="mt-2"
-                        />
+                        <InputLabel for="edit-site" value="Site" class="!text-slate-300" />
+                        <TextAreaInput v-model="editForm.site" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="edit-site" rows="3" placeholder="e.g. https://example.com/track?..." />
+                        <InputError :message="editForm.errors.site" class="mt-2" />
                     </div>
 
                     <div>
-                        <InputLabel for="edit-status" value="Status" />
-                        <SelectInput
-                            v-model="editForm.status"
-                            :options="statusOptions"
-                            class="mt-1 block w-full"
-                            id="edit-status"
-                            required
-                        />
-                        <InputError
-                            :message="editForm.errors.status"
-                            class="mt-2"
-                        />
+                        <InputLabel for="edit-status" value="Status" class="!text-slate-300" />
+                        <SelectInput v-model="editForm.status" :options="statusOptions" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="edit-status" required />
+                        <InputError :message="editForm.errors.status" class="mt-2" />
                     </div>
                 </div>
 
-                <hr class="mt-4" />
-                <div
-                    class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between"
-                >
-                    <SecondaryButton
-                        type="button"
-                        class="flex items-center justify-center"
-                        @click="closeModal()"
-                    >
-                        Cancel
-                    </SecondaryButton>
+                <hr class="mt-4 border-white/10" />
+                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                    <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
                         type="submit"
@@ -388,10 +332,7 @@ function submitDelete() {
                         :class="{ 'opacity-25': editForm.processing }"
                     >
                         <div class="text-sm" v-if="editForm.processing">
-                            <font-awesome-icon
-                                icon="fa-solid fa-spinner"
-                                spin
-                            />
+                            <font-awesome-icon icon="fa-solid fa-spinner" spin />
                         </div>
                         Save
                         <font-awesome-icon icon="fa-solid fa-circle-down" />
@@ -399,52 +340,35 @@ function submitDelete() {
                 </div>
             </form>
         </Modal>
+
         <!-- Delete Modal -->
-        <Modal
-            :show="modal.type.value === 'Delete'"
-            @close="closeModal()"
-            :maxWidth="'md'"
-        >
-            <div class="px-4 pt-5 pb-4 sm:p-6">
-                <h2 class="text-lg font-medium text-gray-900">
-                    <font-awesome-icon icon="fa-solid fa-trash" />
+        <Modal :show="modal.type.value === 'Delete'" @close="closeModal()" :maxWidth="'md'">
+            <div class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
+                <h2 class="text-lg font-semibold text-white">
+                    <font-awesome-icon icon="fa-solid fa-trash" class="text-rose-400" />
                     {{ modal.title.value }}
                 </h2>
-                <hr class="my-2" />
+                <hr class="my-2 border-white/10" />
 
-                <p class="text-sm text-gray-600">
+                <p class="text-sm text-slate-400">
                     Are you sure you want to delete
-                    <span class="font-semibold text-gray-900">{{
-                        courierToDelete?.name
-                    }}</span
-                    >? This action cannot be undone.
+                    <span class="font-semibold text-white">{{ courierToDelete?.name }}</span>? This action cannot be undone.
                 </p>
-                
-                <hr class="mt-4" />
+
+                <hr class="mt-4 border-white/10" />
                 <InputError :message="deleteForm.errors.courier" class="mt-2" />
-                <div
-                    class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between"
-                >
-                    <SecondaryButton
-                        type="button"
-                        class="flex items-center justify-center"
-                        @click="closeModal()"
-                    >
-                        Cancel
-                    </SecondaryButton>
+                <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                    <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
                         type="button"
-                        class="flex items-center justify-center gap-1 !bg-red-600 hover:!bg-red-500"
+                        class="flex items-center justify-center gap-1 !bg-rose-600 hover:!bg-rose-500"
                         :disabled="deleteForm.processing"
                         :class="{ 'opacity-25': deleteForm.processing }"
                         @click="submitDelete"
                     >
                         <div class="text-sm" v-if="deleteForm.processing">
-                            <font-awesome-icon
-                                icon="fa-solid fa-spinner"
-                                spin
-                            />
+                            <font-awesome-icon icon="fa-solid fa-spinner" spin />
                         </div>
                         Delete
                         <font-awesome-icon icon="fa-solid fa-trash" />
@@ -454,3 +378,12 @@ function submitDelete() {
         </Modal>
     </AdminLayout>
 </template>
+
+<style scoped>
+.glass-panel {
+    background: linear-gradient(145deg, rgba(18, 24, 39, 0.85) 0%, rgba(13, 17, 28, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+</style>

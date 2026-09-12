@@ -81,34 +81,24 @@ function saveQr() {
     <Head title="Gcash" />
 
     <AdminLayout>
-        <div class="mx-auto bg-white p-4 rounded-lg">
-            <div>
-                <h1 class="text-xl font-semibold text-gray-900">
-                    <font-awesome-icon icon="fa-solid fa-money-bill-wave" />
-                    GCash
-                </h1>
-                <p class="mt-1 text-gray-500">
-                    Manage the GCash account details and QR code shown to
-                    customers at checkout.
+        <div class="space-y-6">
+            <div class="flex flex-col gap-1">
+                <h1 class="text-2xl font-extrabold text-white tracking-tight">GCash</h1>
+                <p class="text-sm text-slate-400">
+                    Manage the GCash account details and QR code shown to customers at checkout.
                 </p>
             </div>
-            <hr class="my-2" />
-            <div class="grid grid-cols-1 gap-2">
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <!-- GCash Details Card -->
-                <div
-                    class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-                >
-                    <div
-                        class="flex items-center justify-between border-b border-gray-200 bg-ink/5 px-4 py-2"
-                    >
-                        <h2 class="font-semibold text-gray-900">
-                            GCash Details
-                        </h2>
+                <div class="glass-panel rounded-2xl overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-white/5 px-5 py-3.5">
+                        <h2 class="font-semibold text-white">GCash Details</h2>
 
                         <button
                             v-if="!isEditingDetails"
                             type="button"
-                            class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium border border-blue-600 text-blue-600 hover:bg-blue-50"
+                            class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/10 transition-colors"
                             @click="startEditDetails"
                         >
                             <font-awesome-icon icon="fa-solid fa-edit" />
@@ -118,7 +108,7 @@ function saveQr() {
                         <div v-else class="flex items-center gap-2">
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-gray-500 hover:bg-gray-50"
+                                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors"
                                 :disabled="detailsForm.processing"
                                 @click="cancelEditDetails"
                             >
@@ -127,104 +117,65 @@ function saveQr() {
                             </button>
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2 py-1 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                                class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
                                 :disabled="detailsForm.processing"
                                 @click="saveDetails"
                             >
                                 <font-awesome-icon icon="fa-solid fa-check" />
-                                {{
-                                    detailsForm.processing
-                                        ? "Saving..."
-                                        : "Save"
-                                }}
+                                {{ detailsForm.processing ? "Saving..." : "Save" }}
                             </button>
                         </div>
                     </div>
 
-                    <div class="space-y-4 p-4">
+                    <div class="space-y-4 p-5">
                         <template v-if="!isEditingDetails">
                             <div>
-                                <p
-                                    class="text-xs font-medium uppercase tracking-wide text-gray-400"
-                                >
-                                    Account Name
-                                </p>
-                                <p class="mt-1 text-gray-900">
-                                    {{ gcash.account_name }}
-                                </p>
+                                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Account Name</p>
+                                <p class="mt-1 text-white">{{ gcash.account_name }}</p>
                             </div>
                             <div>
-                                <p
-                                    class="text-xs font-medium uppercase tracking-wide text-gray-400"
-                                >
-                                    Account Number
-                                </p>
-                                <p class="mt-1 text-gray-900">
-                                    {{ gcash.account_number }}
-                                </p>
+                                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Account Number</p>
+                                <p class="mt-1 text-white">{{ gcash.account_number }}</p>
                             </div>
                             <div>
-                                <p
-                                    class="text-xs font-medium uppercase tracking-wide text-gray-400"
-                                >
-                                    Instructions
-                                </p>
-                                <p class="mt-1 leading-relaxed text-gray-600">
-                                    {{ gcash.instructions }}
-                                </p>
+                                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Instructions</p>
+                                <p class="mt-1 leading-relaxed text-slate-300">{{ gcash.instructions }}</p>
                             </div>
                         </template>
 
                         <template v-else>
                             <div>
-                                <label
-                                    for="account_name"
-                                    class="text-xs font-medium uppercase tracking-wide text-gray-400"
-                                    >Account Name</label
-                                >
+                                <label for="account_name" class="text-xs font-medium uppercase tracking-wide text-slate-500">Account Name</label>
                                 <input
                                     id="account_name"
                                     v-model="detailsForm.account_name"
                                     type="text"
                                     name="account_name"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 />
-                                <p
-                                    v-if="detailsForm.errors.account_name"
-                                    class="mt-1 text-xs text-red-600"
-                                >
+                                <p v-if="detailsForm.errors.account_name" class="mt-1 text-xs text-rose-400">
                                     {{ detailsForm.errors.account_name }}
                                 </p>
                             </div>
                             <div>
-                                <label
-                                    for="account_number"
-                                    class="text-xs font-medium uppercase tracking-wide text-gray-400"
-                                    >Account Number</label
-                                >
+                                <label for="account_number" class="text-xs font-medium uppercase tracking-wide text-slate-500">Account Number</label>
                                 <input
                                     id="account_number"
                                     v-model="detailsForm.account_number"
                                     type="text"
                                     name="account_number"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 />
-                                <p
-                                    v-if="detailsForm.errors.account_number"
-                                    class="mt-1 text-xs text-red-600"
-                                >
+                                <p v-if="detailsForm.errors.account_number" class="mt-1 text-xs text-rose-400">
                                     {{ detailsForm.errors.account_number }}
                                 </p>
                             </div>
                             <div>
-                                <label
-                                    class="text-xs font-medium uppercase tracking-wide text-gray-400"
-                                    >Instructions</label
-                                >
+                                <label class="text-xs font-medium uppercase tracking-wide text-slate-500">Instructions</label>
                                 <textarea
                                     v-model="detailsForm.instructions"
                                     rows="3"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 ></textarea>
                             </div>
                         </template>
@@ -232,20 +183,14 @@ function saveQr() {
                 </div>
 
                 <!-- GCash QR Scanner Card -->
-                <div
-                    class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-                >
-                    <div
-                        class="flex items-center justify-between border-b border-gray-200 bg-ink/5 px-4 py-2"
-                    >
-                        <h2 class="font-semibold text-gray-900">
-                            GCash QR Scanner
-                        </h2>
+                <div class="glass-panel rounded-2xl overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-white/5 px-5 py-3.5">
+                        <h2 class="font-semibold text-white">GCash QR Scanner</h2>
 
                         <button
                             v-if="!isEditingQr"
                             type="button"
-                            class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium border border-blue-600 text-blue-600 hover:bg-blue-50"
+                            class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/10 transition-colors"
                             @click="startEditQr"
                         >
                             <font-awesome-icon icon="fa-solid fa-edit" />
@@ -255,7 +200,7 @@ function saveQr() {
                         <div v-else class="flex items-center gap-2">
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-gray-500 hover:bg-gray-50"
+                                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors"
                                 :disabled="qrForm.processing"
                                 @click="cancelEditQr"
                             >
@@ -264,10 +209,8 @@ function saveQr() {
                             </button>
                             <button
                                 type="button"
-                                :disabled="
-                                    !qrForm.qr_image || qrForm.processing
-                                "
-                                class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2 py-1 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                                :disabled="!qrForm.qr_image || qrForm.processing"
+                                class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
                                 @click="saveQr"
                             >
                                 <font-awesome-icon icon="fa-solid fa-check" />
@@ -276,49 +219,40 @@ function saveQr() {
                         </div>
                     </div>
 
-                    <div class="flex flex-col items-center gap-4 p-4">
-                        <div
-                            class="flex h-auto w-60 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
-                        >
+                    <div class="flex flex-col items-center gap-4 p-5">
+                        <div class="flex h-auto w-60 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
                             <img
                                 v-if="qrPreview || gcash.qr_image_url"
                                 :src="qrPreview ?? gcash.qr_image_url ?? ''"
                                 alt="GCash QR code"
                                 class="h-full w-full object-contain"
                             />
-                            <font-awesome-icon
-                                v-else
-                                icon="fa-solid fa-image"
-                                class="h-60 w-60 text-gray-300"
-                            />
+                            <font-awesome-icon v-else icon="fa-solid fa-image" class="h-60 w-60 text-slate-700" />
                         </div>
 
                         <label
                             v-if="isEditingQr"
-                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 font-medium text-gray-700 hover:bg-gray-50"
+                            class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800/60 transition-colors"
                         >
                             <font-awesome-icon icon="fa-solid fa-upload" class="text-xs" />
                             Choose image
-                            <input
-                                type="file"
-                                accept="image/*"
-                                class="hidden"
-                                @change="onQrFileChange"
-                            />
+                            <input type="file" accept="image/*" class="hidden" @change="onQrFileChange" />
                         </label>
-                        <p
-                            v-if="qrForm.errors.qr_image"
-                            class="text-xs text-red-600"
-                        >
-                            {{ qrForm.errors.qr_image }}
-                        </p>
+                        <p v-if="qrForm.errors.qr_image" class="text-xs text-rose-400">{{ qrForm.errors.qr_image }}</p>
 
-                        <p class="text-center text-xs text-gray-500">
-                            This QR code is shown to customers.
-                        </p>
+                        <p class="text-center text-xs text-slate-500">This QR code is shown to customers.</p>
                     </div>
                 </div>
             </div>
         </div>
     </AdminLayout>
 </template>
+
+<style scoped>
+.glass-panel {
+    background: linear-gradient(145deg, rgba(18, 24, 39, 0.85) 0%, rgba(13, 17, 28, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+</style>
