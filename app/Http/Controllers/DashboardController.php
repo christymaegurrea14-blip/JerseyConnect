@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -104,7 +105,11 @@ class DashboardController extends Controller
 
     private function getBestSellingTemplates()
     {
-        return Order::select('template_name', DB::raw('SUM(quantity) as sold'))
+        return Order::select(
+                'template_name',
+                DB::raw('SUM(quantity) as sold'),
+                DB::raw('MAX(template_image) as template_image'),
+            )
             ->groupBy('template_name')
             ->orderByDesc('sold')
             ->limit(4)
@@ -112,6 +117,7 @@ class DashboardController extends Controller
             ->map(fn($row) => [
                 'name' => $row->template_name,
                 'sold' => (int) $row->sold,
+                'image' => $row->template_image ? Storage::disk('public')->url($row->template_image) : null,
             ]);
     }
 

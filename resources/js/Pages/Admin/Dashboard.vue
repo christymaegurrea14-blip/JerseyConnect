@@ -20,6 +20,7 @@ interface Stats {
 interface BestSellingTemplate {
     name: string;
     sold: number;
+    image: string | null;
 }
 
 interface RecentOrder {
@@ -259,8 +260,14 @@ function statusChip(status: string) {
                         :key="t.name"
                         class="glass-panel rounded-2xl p-4 flex flex-col gap-3.5"
                     >
-                        <div class="w-full h-32 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-center">
-                            <font-awesome-icon icon="fa-solid fa-tshirt" class="text-3xl text-slate-600" />
+                        <div class="w-full h-32 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-center overflow-hidden">
+                            <img
+                                v-if="t.image"
+                                :src="t.image"
+                                :alt="t.name"
+                                class="h-full w-full object-contain p-2"
+                            />
+                            <font-awesome-icon v-else icon="fa-solid fa-tshirt" class="text-3xl text-slate-600" />
                         </div>
                         <div class="space-y-2">
                             <h3 class="text-sm font-bold text-white tracking-tight truncate">{{ t.name }}</h3>
