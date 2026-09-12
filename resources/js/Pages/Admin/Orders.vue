@@ -725,12 +725,15 @@ function formatDate(value: string) {
 
                     <div>
                         <label
+                            for="transaction_number"
                             class="block text-sm font-medium text-[#14202B] mb-1"
                             >Transaction / Waybill No.</label
                         >
                         <input
+                            id="transaction_number"
                             v-model="statusForm.transaction_number"
                             type="text"
+                            name="transaction_number"
                             placeholder="e.g. JT-88213764521"
                             class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
@@ -744,12 +747,15 @@ function formatDate(value: string) {
 
                     <div>
                         <label
+                            for="shipping_fee"
                             class="block text-sm font-medium text-[#14202B] mb-1"
                             >Shipping Fee (from receipt)</label
                         >
                         <input
+                            id="shipping_fee"
                             v-model.number="statusForm.shipping_fee"
                             type="number"
+                            name="shipping_fee"
                             min="0"
                             step="0.01"
                             placeholder="e.g. 380"
@@ -765,12 +771,15 @@ function formatDate(value: string) {
 
                     <div>
                         <label
+                            for="remarks"
                             class="block text-sm font-medium text-[#14202B] mb-1"
                             >Remarks (optional)</label
                         >
                         <input
+                            id="remarks"
                             v-model="statusForm.remarks"
                             type="text"
+                            name="remarks"
                             placeholder="e.g. 3 boxes"
                             class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />

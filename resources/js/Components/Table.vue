@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends { id?: string | number; ref?: string | number }">
-import { ref, computed, watch, useSlots } from "vue";
+import { ref, computed, watch, useSlots, useId } from "vue";
 
 interface Column {
     key: string;
@@ -46,6 +46,12 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+
+const uid = useId();
+const dateFromId = `${uid}-date-from`;
+const dateToId = `${uid}-date-to`;
+const perPageId = `${uid}-per-page`;
+const searchId = `${uid}-search`;
 
 function getValue(row: T, key: string): unknown {
     return (row as Record<string, unknown>)[key];
@@ -163,19 +169,23 @@ const isShowingResults = computed<boolean>(
             <!-- Filter Row -->
             <div class="flex flex-wrap gap-2" v-if="actions.isDateFilterShow">
                 <div class="flex items-center gap-1 w-full sm:w-auto">
-                    <span class="text-sm text-gray-500">From</span>
+                    <label :for="dateFromId" class="text-sm text-gray-500">From</label>
                     <input
+                        :id="dateFromId"
                         v-model="dateFrom"
                         type="date"
+                        name="dateFrom"
                         class="text-sm border border-gray-300 rounded-md py-1.5 w-full sm:w-auto focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
                     />
                 </div>
 
                 <div class="flex items-center gap-1 w-full sm:w-auto">
-                    <span class="text-sm text-gray-500">To</span>
+                    <label :for="dateToId" class="text-sm text-gray-500">To</label>
                     <input
+                        :id="dateToId"
                         v-model="dateTo"
                         type="date"
+                        name="dateTo"
                         class="text-sm border border-gray-300 rounded-md py-1.5 w-full sm:w-auto focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
                     />
                 </div>
@@ -192,9 +202,11 @@ const isShowingResults = computed<boolean>(
 
             <!-- Per-page selector -->
             <div class="flex items-center gap-2" v-if="actions.isPerPageShow">
-                <span class="text-sm text-gray-500">Show</span>
+                <label :for="perPageId" class="text-sm text-gray-500">Show</label>
                 <select
+                    :id="perPageId"
                     v-model="perPage"
+                    name="perPage"
                     class="text-sm border border-gray-300 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
                 >
                     <option v-for="n in perPageOptions" :key="n" :value="n">
@@ -217,9 +229,12 @@ const isShowingResults = computed<boolean>(
                     />
                 </span>
                 <input
+                    :id="searchId"
                     v-model="searchQuery"
                     type="text"
+                    name="search"
                     placeholder="Search..."
+                    aria-label="Search"
                     class="w-full pl-8 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
             </div>

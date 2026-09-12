@@ -125,9 +125,12 @@ const submit = () => {
                 </div>
 
                 <input
+                    id="jersey-search"
                     v-model="search"
                     type="text"
+                    name="search"
                     placeholder="Search templates..."
+                    aria-label="Search templates"
                     class="w-full rounded border border-[#14202B]/15 px-3 py-1.5 text-sm focus:border-[#2E7D4F] focus:outline-none focus:ring-1 focus:ring-[#2E7D4F] sm:w-64"
                 />
             </div>

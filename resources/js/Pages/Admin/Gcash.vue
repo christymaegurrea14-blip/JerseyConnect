@@ -178,12 +178,15 @@ function saveQr() {
                         <template v-else>
                             <div>
                                 <label
+                                    for="account_name"
                                     class="text-xs font-medium uppercase tracking-wide text-gray-400"
                                     >Account Name</label
                                 >
                                 <input
+                                    id="account_name"
                                     v-model="detailsForm.account_name"
                                     type="text"
+                                    name="account_name"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 />
                                 <p
@@ -195,12 +198,15 @@ function saveQr() {
                             </div>
                             <div>
                                 <label
+                                    for="account_number"
                                     class="text-xs font-medium uppercase tracking-wide text-gray-400"
                                     >Account Number</label
                                 >
                                 <input
+                                    id="account_number"
                                     v-model="detailsForm.account_number"
                                     type="text"
+                                    name="account_number"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 />
                                 <p

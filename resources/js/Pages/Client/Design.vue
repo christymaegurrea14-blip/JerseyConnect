@@ -538,13 +538,16 @@ function submitPayment() {
                     <!-- GCash number -->
                     <div>
                         <label
+                            for="gcash_number"
                             class="block text-sm font-medium text-[#14202B] mb-1"
                         >
                             Your GCash Number
                         </label>
                         <input
+                            id="gcash_number"
                             v-model="paymentForm.gcash_number"
                             type="text"
+                            name="gcash_number"
                             inputmode="numeric"
                             placeholder="09XX XXX XXXX"
                             class="w-full rounded-md border border-[#14202B]/15 px-3 py-2 text-sm focus:border-[#2E7D4F] focus:ring-[#2E7D4F]"
@@ -561,13 +564,16 @@ function submitPayment() {
                     <!-- Reference number -->
                     <div>
                         <label
+                            for="reference_number"
                             class="block text-sm font-medium text-[#14202B] mb-1"
                         >
                             Transaction Reference Number
                         </label>
                         <input
+                            id="reference_number"
                             v-model="paymentForm.reference_number"
                             type="text"
+                            name="reference_number"
                             placeholder="e.g. 1234567890123"
                             class="w-full rounded-md border border-[#14202B]/15 px-3 py-2 text-sm focus:border-[#2E7D4F] focus:ring-[#2E7D4F]"
                             required
