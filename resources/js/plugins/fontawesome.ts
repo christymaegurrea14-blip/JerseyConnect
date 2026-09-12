@@ -7,9 +7,9 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 // the ~2MB main bundle. Add new icons to both the import and library.add()
 // below when a new `fa-solid fa-*` name is introduced in a page/component.
 import {
-    faAnglesLeft, faAnglesRight, faArrowRight, faArrowUpRightFromSquare, faBars, faBox,
+    faAnglesLeft, faAnglesRight, faArrowRight, faArrowTrendDown, faArrowTrendUp, faArrowUpRightFromSquare, faBars, faBox,
     faCalendarXmark, faCartShopping, faCheck, faChevronDown, faChevronLeft, faChevronRight,
-    faCircleDown, faCircleInfo, faCloudArrowUp, faComments, faCreditCard, faEdit,
+    faCircleCheck, faCircleDown, faCircleInfo, faCloudArrowUp, faComments, faCreditCard, faEdit,
     faEnvelope, faEye, faHourglassHalf, faIdCard, faImage, faInbox,
     faLink, faLocationCrosshairs, faLocationDot, faLock, faMagnifyingGlass, faMessage,
     faMoneyBillWave, faNewspaper, faPaperPlane, faPlusCircle, faReceipt, faRightFromBracket,
@@ -19,9 +19,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
-    faAnglesLeft, faAnglesRight, faArrowRight, faArrowUpRightFromSquare, faBars, faBox,
+    faAnglesLeft, faAnglesRight, faArrowRight, faArrowTrendDown, faArrowTrendUp, faArrowUpRightFromSquare, faBars, faBox,
     faCalendarXmark, faCartShopping, faCheck, faChevronDown, faChevronLeft, faChevronRight,
-    faCircleDown, faCircleInfo, faCloudArrowUp, faComments, faCreditCard, faEdit,
+    faCircleCheck, faCircleDown, faCircleInfo, faCloudArrowUp, faComments, faCreditCard, faEdit,
     faEnvelope, faEye, faHourglassHalf, faIdCard, faImage, faInbox,
     faLink, faLocationCrosshairs, faLocationDot, faLock, faMagnifyingGlass, faMessage,
     faMoneyBillWave, faNewspaper, faPaperPlane, faPlusCircle, faReceipt, faRightFromBracket,

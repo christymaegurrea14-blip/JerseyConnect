@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import Table from "@/Components/Table.vue";
 import Modal from "@/Components/Modal.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
@@ -22,13 +21,30 @@ usePoll(5000, {
 const orders = computed<Order[]>(() => props.orders ?? []);
 
 // ---------------------------------------------------------------------------
-// Stats (top summary cards)
+// Stats (top summary cards) — derived entirely from real order data
 // ---------------------------------------------------------------------------
 /** Returns null while the shipping fee is still unknown (pre-shipment). */
 function orderTotal(order: Order): number | null {
     if (order.shipping_fee === null) return null;
     return order.quantity * order.unit_price + order.shipping_fee;
 }
+
+const statusCounts = computed(() => {
+    const counts: Record<OrderStatus, number> = {
+        processing: 0,
+        in_production: 0,
+        ready_for_delivery: 0,
+        shipped: 0,
+        delivered: 0,
+        completed: 0,
+    };
+    for (const o of orders.value) counts[o.status]++;
+    return counts;
+});
+
+const activeOrdersCount = computed(
+    () => orders.value.filter((o) => o.status !== "completed").length,
+);
 
 // ---------------------------------------------------------------------------
 // Status filters + badges
@@ -47,18 +63,30 @@ const activeStatus = ref<OrderStatus | "All">("All");
 const searchQuery = ref("");
 
 const statusBadge: Record<OrderStatus, { label: string; class: string }> = {
-    processing: { label: "Processing", class: "bg-yellow-100 text-yellow-700" },
+    processing: {
+        label: "Processing",
+        class: "bg-amber-500/15 text-amber-300 border-amber-500/25",
+    },
     in_production: {
         label: "In Production",
-        class: "bg-blue-100 text-blue-700",
+        class: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25",
     },
     ready_for_delivery: {
         label: "Ready for Delivery",
-        class: "bg-purple-100 text-purple-700",
+        class: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25",
     },
-    shipped: { label: "Shipped", class: "bg-indigo-100 text-indigo-700" },
-    delivered: { label: "Delivered", class: "bg-teal-100 text-teal-700" },
-    completed: { label: "Completed", class: "bg-green-100 text-green-700" },
+    shipped: {
+        label: "Shipped",
+        class: "bg-purple-500/15 text-purple-300 border-purple-500/25",
+    },
+    delivered: {
+        label: "Delivered",
+        class: "bg-teal-500/15 text-teal-300 border-teal-500/25",
+    },
+    completed: {
+        label: "Completed",
+        class: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
+    },
 };
 
 // Statuses can only move forward, in this order.
@@ -85,18 +113,6 @@ function courierFor(order: Order) {
     if (!order.courier_receipt) return undefined;
     return getCourierById(order.courier_receipt.courier_id);
 }
-
-const columns = [
-    { key: "template_name", label: "Order", slot: "template" },
-    { key: "customer", label: "Customer", slot: "customer" },
-    { key: "quantity", label: "Qty" },
-    { key: "destination", label: "Destination", slot: "destination" },
-    { key: "total", label: "Total", slot: "total" },
-    { key: "status", label: "Status", slot: "status" },
-    { key: "tracking", label: "Tracking", slot: "tracking" },
-    { key: "created_at", label: "Placed", slot: "date" },
-    { key: "actions", label: "Action", slot: "actions" },
-];
 
 const filteredOrders = computed<Order[]>(() => {
     let list = orders.value;
@@ -201,224 +217,223 @@ function formatDate(value: string) {
     <Head title="Orders" />
 
     <AdminLayout>
-        <div class="mx-auto">
-            <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-                <div class="p-4">
-                    <div
-                        class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+        <div class="space-y-6">
+            <!-- Header -->
+            <div class="flex flex-col gap-1">
+                <h1 class="text-2xl font-extrabold text-white tracking-tight">Orders</h1>
+                <p class="text-sm text-slate-400">
+                    {{ orders.length }} order{{ orders.length === 1 ? "" : "s" }} total ·
+                    {{ activeOrdersCount }} active
+                </p>
+            </div>
+
+            <!-- Stat cards (derived from real order data) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">Active orders</span>
+                    <div class="text-2xl font-bold text-white mt-1.5">{{ activeOrdersCount }}</div>
+                </div>
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">In production</span>
+                    <div class="text-2xl font-bold text-indigo-300 mt-1.5">{{ statusCounts.in_production }}</div>
+                </div>
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">Awaiting shipment</span>
+                    <div class="text-2xl font-bold text-cyan-300 mt-1.5">{{ statusCounts.ready_for_delivery }}</div>
+                </div>
+                <div class="glass-panel rounded-xl p-4">
+                    <span class="text-xs font-medium text-slate-400">Completed</span>
+                    <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ statusCounts.completed }}</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+                <div class="flex flex-wrap gap-1.5 p-1.5 rounded-xl bg-slate-900/60 border border-white/5">
+                    <button
+                        v-for="filter in statusFilters"
+                        :key="filter.value"
+                        type="button"
+                        class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+                        :class="
+                            activeStatus === filter.value
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : 'text-slate-400 hover:text-slate-200'
+                        "
+                        @click="activeStatus = filter.value"
                     >
-                        <h1 class="text-lg font-semibold text-[#14202B]">
-                            <font-awesome-icon
-                                icon="fa-solid fa-cart-shopping"
-                            />
-                            Orders
-                        </h1>
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                v-for="filter in statusFilters"
-                                :key="filter.value"
-                                type="button"
-                                class="rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
-                                :class="
-                                    activeStatus === filter.value
-                                        ? 'bg-[#2E7D4F] text-white'
-                                        : 'bg-[#14202B]/5 text-[#14202B]/70 hover:bg-[#14202B]/10'
-                                "
-                                @click="activeStatus = filter.value"
+                        {{ filter.label }}
+                    </button>
+                </div>
+
+                <div class="relative w-full lg:w-72">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
+                        <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
+                    </span>
+                    <input
+                        id="orders-search"
+                        v-model="searchQuery"
+                        type="text"
+                        name="search"
+                        placeholder="Search order #, team, customer..."
+                        aria-label="Search orders"
+                        class="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-white/5">
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Order</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Customer</th>
+                                <th class="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Qty</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Destination</th>
+                                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">Total</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Tracking</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Placed</th>
+                                <th class="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr v-if="filteredOrders.length === 0">
+                                <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-500">
+                                    No orders match your filters.
+                                </td>
+                            </tr>
+                            <tr
+                                v-for="row in filteredOrders"
+                                :key="row.id"
+                                class="hover:bg-slate-800/30 transition-colors"
                             >
-                                {{ filter.label }}
-                            </button>
-                        </div>
-                    </div>
-                    <hr class="mb-4 mt-3" />
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2.5">
+                                        <img
+                                            :src="row.template_image"
+                                            :alt="row.template_name"
+                                            class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-slate-900 border border-white/10 p-1"
+                                        />
+                                        <div class="flex flex-col">
+                                            <span class="font-semibold text-white">{{ row.team_name }}</span>
+                                            <span class="text-[11px] text-slate-500 font-mono">{{ row.order_number }}</span>
+                                        </div>
+                                    </div>
+                                </td>
 
-                    <Table
-                        :data="filteredOrders"
-                        :columns="columns"
-                        date-key="created_at"
-                        :empty-state-message="'No orders match your filters.'"
-                    >
-                        <template #template="{ row }">
-                            <div class="flex items-center gap-2 text-left">
-                                <img
-                                    :src="row.template_image"
-                                    :alt="row.template_name"
-                                    class="h-8 w-8 flex-shrink-0 rounded object-contain bg-[#14202B]/5 p-1"
-                                />
-                                <div class="flex flex-col">
-                                    <span class="font-medium text-[#14202B]">{{
-                                        row.team_name
-                                    }}</span>
-                                    <span class="text-xs text-[#14202B]/50">{{
-                                        row.order_number
-                                    }}</span>
-                                </div>
-                            </div>
-                        </template>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-col text-xs">
+                                        <span class="font-medium text-slate-200">{{ row.address.recipient_name }}</span>
+                                        <span class="text-slate-500">{{ row.address.contact_number }}</span>
+                                    </div>
+                                </td>
 
-                        <template #customer="{ row }">
-                            <div class="flex flex-col text-xs">
-                                <span class="font-medium text-[#14202B]">{{
-                                    row.address.recipient_name
-                                }}</span>
-                                <span class="text-[#14202B]/50">{{
-                                    row.address.contact_number
-                                }}</span>
-                            </div>
-                        </template>
+                                <td class="px-4 py-3 text-center text-slate-300">{{ row.quantity }}</td>
 
-                        <template #destination="{ row }">
-                            <div class="flex flex-col items-center text-xs">
-                                <span class="font-medium text-[#14202B]">{{
-                                    row.address.province
-                                }}</span>
-                                <span class="text-[#14202B]/50">{{
-                                    row.address.city
-                                }}</span>
-                            </div>
-                        </template>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-col text-xs">
+                                        <span class="font-medium text-slate-200">{{ row.address.province }}</span>
+                                        <span class="text-slate-500">{{ row.address.city }}</span>
+                                    </div>
+                                </td>
 
-                        <template #total="{ row }">
-                            <div
-                                v-if="orderTotal(row) !== null"
-                                class="flex flex-col items-center text-xs"
-                            >
-                                <span class="font-semibold text-[#14202B]">{{
-                                    formatCurrency(orderTotal(row)!)
-                                }}</span>
-                                <span class="text-[#14202B]/40">
-                                    incl.
-                                    {{ formatCurrency(row.shipping_fee!) }}
-                                    shipping
-                                </span>
-                            </div>
-                            <span v-else class="text-xs text-[#14202B]/40">
-                                Pending shipping fee
-                            </span>
-                        </template>
+                                <td class="px-4 py-3 text-right">
+                                    <div v-if="orderTotal(row) !== null" class="flex flex-col">
+                                        <span class="font-semibold text-white">{{ formatCurrency(orderTotal(row)!) }}</span>
+                                        <span class="text-[11px] text-slate-500">incl. {{ formatCurrency(row.shipping_fee!) }} shipping</span>
+                                    </div>
+                                    <span v-else class="text-xs text-slate-500">Pending shipping fee</span>
+                                </td>
 
-                        <template #status="{ row }">
-                            <span
-                                class="inline-block rounded-full px-2.5 py-1 text-xs font-medium"
-                                :class="statusBadge[row.status].class"
-                            >
-                                {{ statusBadge[row.status].label }}
-                            </span>
-                        </template>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="inline-block rounded-full px-2.5 py-1 text-[11px] font-medium border"
+                                        :class="statusBadge[row.status].class"
+                                    >
+                                        {{ statusBadge[row.status].label }}
+                                    </span>
+                                </td>
 
-                        <template #tracking="{ row }">
-                            <div
-                                v-if="row.courier_receipt"
-                                class="flex flex-col text-xs"
-                            >
-                                <span class="font-medium text-blue-600">{{
-                                    row.courier_receipt.transaction_number
-                                }}</span>
-                                <span class="text-[#14202B]/40">{{
-                                    courierFor(row)?.name ?? "Unknown courier"
-                                }}</span>
-                            </div>
-                            <span v-else class="text-xs text-[#14202B]/40"
-                                >—</span
-                            >
-                        </template>
+                                <td class="px-4 py-3">
+                                    <div v-if="row.courier_receipt" class="flex flex-col text-xs">
+                                        <span class="font-medium text-indigo-300 font-mono">{{ row.courier_receipt.transaction_number }}</span>
+                                        <span class="text-slate-500">{{ courierFor(row)?.name ?? "Unknown courier" }}</span>
+                                    </div>
+                                    <span v-else class="text-xs text-slate-600">—</span>
+                                </td>
 
-                        <template #date="{ row }">
-                            {{ formatDate(row.created_at) }}
-                        </template>
+                                <td class="px-4 py-3 text-xs text-slate-400">{{ formatDate(row.created_at) }}</td>
 
-                        <template #actions="{ row }">
-                            <div class="flex items-center justify-center gap-1">
-                                <button
-                                    type="button"
-                                    class="text-xs font-medium bg-blue-600 text-white rounded-md px-2 py-2 transition-colors hover:bg-blue-500"
-                                    @click="viewOrder(row)"
-                                >
-                                    <font-awesome-icon icon="fa-solid fa-eye" />
-                                    View
-                                </button>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button
+                                            type="button"
+                                            class="text-xs font-medium bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-md px-2 py-2 transition-colors hover:bg-indigo-600/30"
+                                            @click="viewOrder(row)"
+                                        >
+                                            <font-awesome-icon icon="fa-solid fa-eye" />
+                                        </button>
 
-                                <button
-                                    v-if="row.status !== 'completed'"
-                                    type="button"
-                                    class="text-xs font-medium bg-gray-600 text-white rounded-md px-2 py-2 transition-colors hover:bg-gray-500"
-                                    @click="openStatusModal(row)"
-                                >
-                                    <font-awesome-icon
-                                        icon="fa-solid fa-edit"
-                                    />
-                                    Update
-                                </button>
+                                        <button
+                                            v-if="row.status !== 'completed'"
+                                            type="button"
+                                            class="text-xs font-medium bg-slate-800 text-slate-300 border border-white/10 rounded-md px-2 py-2 transition-colors hover:bg-slate-700"
+                                            @click="openStatusModal(row)"
+                                        >
+                                            <font-awesome-icon icon="fa-solid fa-edit" />
+                                        </button>
 
-                                <Link
-                                    v-if="row.status !== 'completed'"
-                                    class="text-xs font-medium bg-orange-600 text-white rounded-md px-2 py-2 transition-colors hover:bg-orange-500"
-                                    :href="route('admin.messages.index')"
-                                >
-                                    <font-awesome-icon
-                                        icon="fa-solid fa-message"
-                                    />
-                                    Message
-                                </Link>
+                                        <Link
+                                            v-if="row.status !== 'completed'"
+                                            class="text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-md px-2 py-2 transition-colors hover:bg-amber-500/30"
+                                            :href="route('admin.messages.index')"
+                                        >
+                                            <font-awesome-icon icon="fa-solid fa-message" />
+                                        </Link>
 
-                                <a
-                                    class="text-xs font-medium bg-ink text-white rounded-md px-2 py-2 transition-colors hover:bg-ink/90"
-                                    v-if="
-                                        row.courier_receipt &&
-                                        row.status === 'shipped' &&
-                                        courierFor(row)
-                                    "
-                                    :href="courierFor(row)!.site"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <font-awesome-icon
-                                        icon="fa-solid fa-truck"
-                                    />
-                                    Track
-                                </a>
-                            </div>
-                        </template>
-                    </Table>
+                                        <a
+                                            class="text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md px-2 py-2 transition-colors hover:bg-emerald-500/30"
+                                            v-if="row.courier_receipt && row.status === 'shipped' && courierFor(row)"
+                                            :href="courierFor(row)!.site"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <font-awesome-icon icon="fa-solid fa-truck" />
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
         <!-- View Order Modal -->
-        <Modal
-            :show="modal.type.value === 'View'"
-            @close="closeModal"
-            :maxWidth="'5xl'"
-        >
+        <Modal :show="modal.type.value === 'View'" @close="closeModal" :maxWidth="'5xl'">
             <div
-                class="overflow-y-auto max-h-[90vh] px-4 pt-5 pb-4 sm:p-6"
                 v-if="selectedOrder"
+                class="overflow-y-auto max-h-[90vh] px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200"
             >
                 <div class="flex items-center justify-between gap-2">
-                    <h2
-                        class="text-base sm:text-lg font-medium text-gray-900 truncate"
-                    >
-                        <font-awesome-icon :icon="modal.icon.value" />
-                        {{ modal.title.value }} —
-                        {{ selectedOrder.order_number }}
+                    <h2 class="text-base sm:text-lg font-semibold text-white truncate">
+                        <font-awesome-icon :icon="modal.icon.value" class="text-indigo-400" />
+                        {{ modal.title.value }} — {{ selectedOrder.order_number }}
                     </h2>
                     <SecondaryButton @click="closeModal" class="flex-shrink-0">
                         <font-awesome-icon icon="fa-solid fa-xmark" />
                     </SecondaryButton>
                 </div>
-                <hr class="my-3" />
+                <hr class="my-3 border-white/10" />
 
                 <div class="flex flex-col gap-4 sm:flex-row">
                     <!-- Jersey preview -->
-                    <div
-                        class="flex flex-col gap-3 border border-[#14202B]/10 px-3 py-3 rounded w-full sm:w-1/3"
-                    >
-                        <p class="text-sm font-bold text-[#14202B] text-center">
-                            {{ selectedOrder.template_name }}
-                        </p>
-                        <div
-                            class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-[#14202B]/10 bg-[#14202B]/5"
-                        >
+                    <div class="flex flex-col gap-3 border border-white/10 px-3 py-3 rounded-xl w-full sm:w-1/3 bg-slate-900/40">
+                        <p class="text-sm font-bold text-white text-center">{{ selectedOrder.template_name }}</p>
+                        <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
                             <img
                                 :src="selectedOrder.template_image"
                                 :alt="selectedOrder.template_name"
@@ -426,195 +441,82 @@ function formatDate(value: string) {
                             />
                         </div>
                         <div class="flex items-center justify-center gap-1">
-                            <span
-                                class="h-4 w-4 rounded-full border border-[#14202B]/15"
-                                :style="{
-                                    backgroundColor:
-                                        selectedOrder.primary_color,
-                                }"
-                            />
-                            <span
-                                class="h-4 w-4 rounded-full border border-[#14202B]/15"
-                                :style="{
-                                    backgroundColor:
-                                        selectedOrder.secondary_color,
-                                }"
-                            />
-                            <span
-                                class="h-4 w-4 rounded-full border border-[#14202B]/15"
-                                :style="{
-                                    backgroundColor: selectedOrder.accent_color,
-                                }"
-                            />
+                            <span class="h-4 w-4 rounded-full border border-white/20" :style="{ backgroundColor: selectedOrder.primary_color }" />
+                            <span class="h-4 w-4 rounded-full border border-white/20" :style="{ backgroundColor: selectedOrder.secondary_color }" />
+                            <span class="h-4 w-4 rounded-full border border-white/20" :style="{ backgroundColor: selectedOrder.accent_color }" />
                         </div>
-                        <p class="text-xs text-center text-[#14202B]/50">
-                            {{ selectedOrder.font_style }} • Qty
-                            {{ selectedOrder.quantity }}
-                        </p>
-                        <Link
-                            :href="route('admin.design.index')"
-                            class="text-center text-xs text-blue-600 hover:underline"
-                        >
+                        <p class="text-xs text-center text-slate-400">{{ selectedOrder.font_style }} • Qty {{ selectedOrder.quantity }}</p>
+                        <Link :href="route('admin.design.index')" class="text-center text-xs text-indigo-400 hover:text-indigo-300">
                             View original design request
                         </Link>
                     </div>
 
                     <!-- Delivery + cost -->
                     <div class="flex flex-col gap-4 w-full sm:w-2/3">
-                        <div class="border border-[#14202B]/10 rounded p-3">
-                            <p class="text-sm font-bold text-[#14202B] mb-2">
-                                <font-awesome-icon
-                                    icon="fa-solid fa-location-dot"
-                                />
+                        <div class="border border-white/10 rounded-xl p-3 bg-slate-900/40">
+                            <p class="text-sm font-bold text-white mb-2">
+                                <font-awesome-icon icon="fa-solid fa-location-dot" class="text-indigo-400" />
                                 Delivery Address
                             </p>
-                            <p
-                                class="text-sm text-[#14202B]/80"
-                                v-if="
-                                    selectedOrder.address.recipient_name &&
-                                    selectedOrder.address.contact_number
-                                "
-                            >
-                                {{ selectedOrder.address.recipient_name }} •
-                                {{ selectedOrder.address.contact_number }}
+                            <p class="text-sm text-slate-300" v-if="selectedOrder.address.recipient_name && selectedOrder.address.contact_number">
+                                {{ selectedOrder.address.recipient_name }} • {{ selectedOrder.address.contact_number }}
                             </p>
-                            <p
-                                class="text-sm text-[#14202B]/80"
-                                v-if="
-                                    selectedOrder.address.line1 &&
-                                    selectedOrder.address.province
-                                "
-                            >
-                                {{ selectedOrder.address.line1
-                                }}<span v-if="selectedOrder.address.barangay"
-                                    >,
-                                    {{ selectedOrder.address.barangay }}</span
-                                >, {{ selectedOrder.address.city }},
-                                {{ selectedOrder.address.province }}
-                                {{ selectedOrder.address.postal_code }}
+                            <p class="text-sm text-slate-300" v-if="selectedOrder.address.line1 && selectedOrder.address.province">
+                                {{ selectedOrder.address.line1 }}<span v-if="selectedOrder.address.barangay">, {{ selectedOrder.address.barangay }}</span>,
+                                {{ selectedOrder.address.city }}, {{ selectedOrder.address.province }} {{ selectedOrder.address.postal_code }}
                             </p>
-                            <p class="text-xs text-[#14202B]/40 mt-1">
-                                Address is managed by the customer. Ask them to
-                                update it from their account.
+                            <p class="text-xs text-slate-500 mt-1">
+                                Address is managed by the customer. Ask them to update it from their account.
                             </p>
                         </div>
 
-                        <div class="border border-[#14202B]/10 rounded p-3">
-                            <p class="text-sm font-bold text-[#14202B] mb-2">
-                                <font-awesome-icon icon="fa-solid fa-receipt" />
+                        <div class="border border-white/10 rounded-xl p-3 bg-slate-900/40">
+                            <p class="text-sm font-bold text-white mb-2">
+                                <font-awesome-icon icon="fa-solid fa-receipt" class="text-indigo-400" />
                                 Cost Breakdown
                             </p>
-                            <div
-                                class="flex justify-between text-sm text-[#14202B]/80"
-                            >
-                                <span
-                                    >{{ selectedOrder.quantity }} ×
-                                    {{
-                                        formatCurrency(selectedOrder.unit_price)
-                                    }}</span
-                                >
-                                <span>{{
-                                    formatCurrency(
-                                        selectedOrder.quantity *
-                                            selectedOrder.unit_price,
-                                    )
-                                }}</span>
+                            <div class="flex justify-between text-sm text-slate-300">
+                                <span>{{ selectedOrder.quantity }} × {{ formatCurrency(selectedOrder.unit_price) }}</span>
+                                <span>{{ formatCurrency(selectedOrder.quantity * selectedOrder.unit_price) }}</span>
                             </div>
-                            <div
-                                class="flex justify-between text-sm text-[#14202B]/80"
-                            >
+                            <div class="flex justify-between text-sm text-slate-300">
                                 <span>Shipping fee</span>
-                                <span>{{
-                                    selectedOrder.shipping_fee !== null
-                                        ? formatCurrency(
-                                              selectedOrder.shipping_fee,
-                                          )
-                                        : "To be determined"
-                                }}</span>
+                                <span>{{ selectedOrder.shipping_fee !== null ? formatCurrency(selectedOrder.shipping_fee) : "To be determined" }}</span>
                             </div>
-                            <hr class="my-2" />
-                            <div
-                                class="flex justify-between text-sm font-semibold text-[#14202B]"
-                            >
+                            <hr class="my-2 border-white/10" />
+                            <div class="flex justify-between text-sm font-semibold text-white">
                                 <span>Total</span>
-                                <span>{{
-                                    orderTotal(selectedOrder) !== null
-                                        ? formatCurrency(
-                                              orderTotal(selectedOrder)!,
-                                          )
-                                        : "Pending shipping fee"
-                                }}</span>
+                                <span>{{ orderTotal(selectedOrder) !== null ? formatCurrency(orderTotal(selectedOrder)!) : "Pending shipping fee" }}</span>
                             </div>
                         </div>
 
-                        <div class="border border-[#14202B]/10 rounded p-3">
-                            <p class="text-sm font-bold text-[#14202B] mb-2">
-                                <font-awesome-icon icon="fa-solid fa-truck" />
+                        <div class="border border-white/10 rounded-xl p-3 bg-slate-900/40">
+                            <p class="text-sm font-bold text-white mb-2">
+                                <font-awesome-icon icon="fa-solid fa-truck" class="text-indigo-400" />
                                 Shipping Status
                             </p>
-                            <span
-                                class="inline-block rounded-full px-2.5 py-1 text-xs font-medium"
-                                :class="statusBadge[selectedOrder.status].class"
-                            >
+                            <span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium border" :class="statusBadge[selectedOrder.status].class">
                                 {{ statusBadge[selectedOrder.status].label }}
                             </span>
 
-                            <div
-                                v-if="selectedOrder.courier_receipt"
-                                class="mt-2 text-sm text-[#14202B]/80"
-                            >
-                                <p>
-                                    Courier:
-                                    {{
-                                        courierFor(selectedOrder)?.name ??
-                                        "Unknown courier"
-                                    }}
-                                </p>
-                                <p>
-                                    Transaction #:
-                                    {{
-                                        selectedOrder.courier_receipt
-                                            .transaction_number
-                                    }}
-                                </p>
-                                <p>
-                                    Shipping fee (from receipt):
-                                    {{
-                                        formatCurrency(
-                                            selectedOrder.courier_receipt
-                                                .shipping_fee,
-                                        )
-                                    }}
-                                </p>
-                                <p>
-                                    Shipped:
-                                    {{
-                                        formatDate(
-                                            selectedOrder.courier_receipt
-                                                .date_shipped,
-                                        )
-                                    }}
-                                </p>
-                                <p v-if="selectedOrder.courier_receipt.remarks">
-                                    Remarks:
-                                    {{ selectedOrder.courier_receipt.remarks }}
-                                </p>
+                            <div v-if="selectedOrder.courier_receipt" class="mt-2 text-sm text-slate-300 space-y-0.5">
+                                <p>Courier: {{ courierFor(selectedOrder)?.name ?? "Unknown courier" }}</p>
+                                <p>Transaction #: {{ selectedOrder.courier_receipt.transaction_number }}</p>
+                                <p>Shipping fee (from receipt): {{ formatCurrency(selectedOrder.courier_receipt.shipping_fee) }}</p>
+                                <p>Shipped: {{ formatDate(selectedOrder.courier_receipt.date_shipped) }}</p>
+                                <p v-if="selectedOrder.courier_receipt.remarks">Remarks: {{ selectedOrder.courier_receipt.remarks }}</p>
                                 <a
                                     v-if="courierFor(selectedOrder)"
                                     :href="courierFor(selectedOrder)!.site"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    class="inline-flex items-center gap-1 mt-1 text-blue-600 hover:underline"
+                                    class="inline-flex items-center gap-1 mt-1 text-indigo-400 hover:text-indigo-300"
                                 >
-                                    <font-awesome-icon
-                                        icon="fa-solid fa-arrow-up-right-from-square"
-                                    />
+                                    <font-awesome-icon icon="fa-solid fa-arrow-up-right-from-square" />
                                     Track Package
                                 </a>
                             </div>
-                            <p v-else class="mt-2 text-xs text-[#14202B]/40">
-                                No courier receipt attached yet.
-                            </p>
+                            <p v-else class="mt-2 text-xs text-slate-500">No courier receipt attached yet.</p>
                         </div>
 
                         <div>
@@ -639,118 +541,62 @@ function formatDate(value: string) {
         </Modal>
 
         <!-- Update Status / Courier Receipt Modal -->
-        <Modal
-            :show="modal.type.value === 'UpdateStatus'"
-            @close="closeModal"
-            :maxWidth="'md'"
-        >
-            <div class="px-4 pt-5 pb-4 sm:p-6" v-if="selectedOrder">
-                <h2 class="text-lg font-medium text-gray-900">
-                    <font-awesome-icon :icon="modal.icon.value" />
+        <Modal :show="modal.type.value === 'UpdateStatus'" @close="closeModal" :maxWidth="'md'">
+            <div v-if="selectedOrder" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
+                <h2 class="text-lg font-semibold text-white">
+                    <font-awesome-icon :icon="modal.icon.value" class="text-indigo-400" />
                     {{ modal.title.value }}
                 </h2>
-                <p class="mt-1 text-xs text-[#14202B]/50">
-                    {{ selectedOrder.order_number }} —
-                    {{ selectedOrder.team_name }}
-                </p>
-                <hr class="my-3" />
+                <p class="mt-1 text-xs text-slate-500">{{ selectedOrder.order_number }} — {{ selectedOrder.team_name }}</p>
+                <hr class="my-3 border-white/10" />
 
-                <label class="block text-sm font-medium text-[#14202B] mb-1"
-                    >Move to</label
-                >
+                <label class="block text-sm font-medium text-slate-300 mb-1">Move to</label>
                 <select
                     v-model="statusForm.status"
-                    class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    class="w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                    <option
-                        v-for="s in nextAllowedStatuses(selectedOrder.status)"
-                        :key="s"
-                        :value="s"
-                    >
+                    <option v-for="s in nextAllowedStatuses(selectedOrder.status)" :key="s" :value="s">
                         {{ statusBadge[s].label }}
                     </option>
                 </select>
-                <p
-                    v-if="statusForm.errors.status"
-                    class="mt-1 text-xs text-red-600"
-                >
-                    {{ statusForm.errors.status }}
-                </p>
+                <p v-if="statusForm.errors.status" class="mt-1 text-xs text-rose-400">{{ statusForm.errors.status }}</p>
 
-                <div
-                    v-if="needsCourierReceipt"
-                    class="mt-4 border-t border-[#14202B]/10 pt-4 space-y-3"
-                >
-                    <p class="text-xs text-[#14202B]/60">
-                        No courier API is connected enter the transaction
-                        number and shipping fee from the courier's receipt. The
-                        tracking site is pulled from the Courier module, so
-                        there's nothing to paste in for that.
+                <div v-if="needsCourierReceipt" class="mt-4 border-t border-white/10 pt-4 space-y-3">
+                    <p class="text-xs text-slate-500">
+                        No courier API is connected — enter the transaction number and shipping fee from the courier's receipt. The
+                        tracking site is pulled from the Courier module, so there's nothing to paste in for that.
                     </p>
 
                     <div>
-                        <label
-                            class="block text-sm font-medium text-[#14202B] mb-1"
-                            >Courier</label
-                        >
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Courier</label>
                         <select
                             v-model.number="statusForm.courier_id"
-                            class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            class="w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                         >
-                            <option :value="null" disabled>
-                                Select courier
-                            </option>
-                            <option
-                                v-for="c in courierOptions"
-                                :key="c.id"
-                                :value="c.id"
-                            >
-                                {{ c.name }}
-                            </option>
+                            <option :value="null" disabled>Select courier</option>
+                            <option v-for="c in courierOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                         </select>
-                        <p
-                            v-if="courierOptions.length === 0"
-                            class="mt-1 text-xs text-red-600"
-                        >
-                            No active couriers found. Add or activate one in the
-                            Couriers module first.
+                        <p v-if="courierOptions.length === 0" class="mt-1 text-xs text-rose-400">
+                            No active couriers found. Add or activate one in the Couriers module first.
                         </p>
-                        <p
-                            v-if="statusForm.errors.courier_id"
-                            class="mt-1 text-xs text-red-600"
-                        >
-                            {{ statusForm.errors.courier_id }}
-                        </p>
+                        <p v-if="statusForm.errors.courier_id" class="mt-1 text-xs text-rose-400">{{ statusForm.errors.courier_id }}</p>
                     </div>
 
                     <div>
-                        <label
-                            for="transaction_number"
-                            class="block text-sm font-medium text-[#14202B] mb-1"
-                            >Transaction / Waybill No.</label
-                        >
+                        <label for="transaction_number" class="block text-sm font-medium text-slate-300 mb-1">Transaction / Waybill No.</label>
                         <input
                             id="transaction_number"
                             v-model="statusForm.transaction_number"
                             type="text"
                             name="transaction_number"
                             placeholder="e.g. JT-88213764521"
-                            class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            class="w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                         />
-                        <p
-                            v-if="statusForm.errors.transaction_number"
-                            class="mt-1 text-xs text-red-600"
-                        >
-                            {{ statusForm.errors.transaction_number }}
-                        </p>
+                        <p v-if="statusForm.errors.transaction_number" class="mt-1 text-xs text-rose-400">{{ statusForm.errors.transaction_number }}</p>
                     </div>
 
                     <div>
-                        <label
-                            for="shipping_fee"
-                            class="block text-sm font-medium text-[#14202B] mb-1"
-                            >Shipping Fee (from receipt)</label
-                        >
+                        <label for="shipping_fee" class="block text-sm font-medium text-slate-300 mb-1">Shipping Fee (from receipt)</label>
                         <input
                             id="shipping_fee"
                             v-model.number="statusForm.shipping_fee"
@@ -759,36 +605,22 @@ function formatDate(value: string) {
                             min="0"
                             step="0.01"
                             placeholder="e.g. 380"
-                            class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            class="w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                         />
-                        <p
-                            v-if="statusForm.errors.shipping_fee"
-                            class="mt-1 text-xs text-red-600"
-                        >
-                            {{ statusForm.errors.shipping_fee }}
-                        </p>
+                        <p v-if="statusForm.errors.shipping_fee" class="mt-1 text-xs text-rose-400">{{ statusForm.errors.shipping_fee }}</p>
                     </div>
 
                     <div>
-                        <label
-                            for="remarks"
-                            class="block text-sm font-medium text-[#14202B] mb-1"
-                            >Remarks (optional)</label
-                        >
+                        <label for="remarks" class="block text-sm font-medium text-slate-300 mb-1">Remarks (optional)</label>
                         <input
                             id="remarks"
                             v-model="statusForm.remarks"
                             type="text"
                             name="remarks"
                             placeholder="e.g. 3 boxes"
-                            class="w-full rounded-md border border-gray-300 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            class="w-full rounded-md bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                         />
-                        <p
-                            v-if="statusForm.errors.remarks"
-                            class="mt-1 text-xs text-red-600"
-                        >
-                            {{ statusForm.errors.remarks }}
-                        </p>
+                        <p v-if="statusForm.errors.remarks" class="mt-1 text-xs text-rose-400">{{ statusForm.errors.remarks }}</p>
                     </div>
                 </div>
 
@@ -801,10 +633,7 @@ function formatDate(value: string) {
                         :class="{ 'opacity-25': !isFormValid || statusForm.processing }"
                     >
                         <div class="text-sm" v-if="!isFormValid || statusForm.processing">
-                            <font-awesome-icon
-                                icon="fa-solid fa-spinner"
-                                spin
-                            />
+                            <font-awesome-icon icon="fa-solid fa-spinner" spin />
                         </div>
                         Save
                     </PrimaryButton>
@@ -813,3 +642,12 @@ function formatDate(value: string) {
         </Modal>
     </AdminLayout>
 </template>
+
+<style scoped>
+.glass-panel {
+    background: linear-gradient(145deg, rgba(18, 24, 39, 0.85) 0%, rgba(13, 17, 28, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+</style>
