@@ -12,7 +12,7 @@ import ImageUpload from "@/Components/ImageUpload.vue";
 import type { DesignRequest, DesignRequestStatus } from "@/types/jersey";
 import { useModal } from "@/Composables/useModal";
 import { Head, Link, useForm, router, usePoll } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const props = defineProps<{
     data?: DesignRequest[];
@@ -96,10 +96,25 @@ const awaitingPaymentCount = computed(
         statusCounts.value.pending_down_payment_review,
 );
 
+const dateFrom = ref("");
+const dateTo = ref("");
+const perPage = ref(10);
+const perPageOptions = [5, 10, 25, 50];
+const currentPage = ref(1);
+
 const filteredByStatus = computed<DesignRequest[]>(() => {
     let list = requests.value;
     if (activeStatus.value !== "All") {
         list = list.filter((r) => r.status === activeStatus.value);
+    }
+    if (dateFrom.value) {
+        const from = new Date(dateFrom.value);
+        list = list.filter((r) => new Date(r.created_at) >= from);
+    }
+    if (dateTo.value) {
+        const to = new Date(dateTo.value);
+        to.setHours(23, 59, 59, 999);
+        list = list.filter((r) => new Date(r.created_at) <= to);
     }
     const q = searchQuery.value.trim().toLowerCase();
     if (q) {
@@ -111,6 +126,39 @@ const filteredByStatus = computed<DesignRequest[]>(() => {
     }
     return list;
 });
+
+watch([activeStatus, dateFrom, dateTo, searchQuery, perPage], () => {
+    currentPage.value = 1;
+});
+
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(filteredByStatus.value.length / perPage.value)),
+);
+
+const paginatedRequests = computed<DesignRequest[]>(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    return filteredByStatus.value.slice(start, start + perPage.value);
+});
+
+const rangeStart = computed(() =>
+    filteredByStatus.value.length === 0
+        ? 0
+        : (currentPage.value - 1) * perPage.value + 1,
+);
+const rangeEnd = computed(() =>
+    Math.min(currentPage.value * perPage.value, filteredByStatus.value.length),
+);
+
+function clearFilters() {
+    dateFrom.value = "";
+    dateTo.value = "";
+    searchQuery.value = "";
+    activeStatus.value = "All";
+}
+
+const hasActiveFilters = computed(
+    () => !!dateFrom.value || !!dateTo.value || !!searchQuery.value.trim() || activeStatus.value !== "All",
+);
 
 const modal = useModal();
 const selectedRequest = ref<DesignRequest | null>(null);
@@ -344,6 +392,53 @@ function submitEdit() {
                 </div>
             </div>
 
+            <!-- Date range + per-page -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-1.5">
+                    <label for="design-from" class="text-xs text-slate-500">From</label>
+                    <input
+                        id="design-from"
+                        v-model="dateFrom"
+                        type="date"
+                        name="dateFrom"
+                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label for="design-to" class="text-xs text-slate-500">To</label>
+                    <input
+                        id="design-to"
+                        v-model="dateTo"
+                        type="date"
+                        name="dateTo"
+                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                </div>
+
+                <button
+                    v-if="hasActiveFilters"
+                    type="button"
+                    @click="clearFilters"
+                    class="flex items-center gap-1.5 text-xs font-medium text-rose-300 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg px-2.5 py-1.5 transition-colors"
+                >
+                    <font-awesome-icon icon="fa-solid fa-xmark" />
+                    Clear filters
+                </button>
+
+                <div class="flex items-center gap-1.5 ml-auto">
+                    <label for="design-per-page" class="text-xs text-slate-500">Show</label>
+                    <select
+                        id="design-per-page"
+                        v-model.number="perPage"
+                        name="perPage"
+                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                        <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
+                    </select>
+                    <span class="text-xs text-slate-500">per page</span>
+                </div>
+            </div>
+
             <!-- Table -->
             <div class="glass-panel rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
@@ -367,7 +462,7 @@ function submitEdit() {
                                 </td>
                             </tr>
                             <tr
-                                v-for="row in filteredByStatus"
+                                v-for="row in paginatedRequests"
                                 :key="row.id"
                                 class="hover:bg-slate-800/30 transition-colors"
                             >
@@ -455,6 +550,35 @@ function submitEdit() {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div v-if="filteredByStatus.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p class="text-xs text-slate-500">
+                    Showing <span class="text-slate-300 font-medium">{{ rangeStart }}–{{ rangeEnd }}</span>
+                    of <span class="text-slate-300 font-medium">{{ filteredByStatus.length }}</span> requests
+                </p>
+                <div class="flex items-center gap-1">
+                    <button
+                        type="button"
+                        @click="currentPage--"
+                        :disabled="currentPage === 1"
+                        class="px-2.5 py-1.5 rounded-lg border text-xs transition-colors"
+                        :class="currentPage === 1 ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-white/10 text-slate-300 hover:bg-slate-800/60'"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-chevron-left" />
+                    </button>
+                    <span class="px-3 py-1.5 text-xs text-slate-300">Page {{ currentPage }} of {{ totalPages }}</span>
+                    <button
+                        type="button"
+                        @click="currentPage++"
+                        :disabled="currentPage === totalPages"
+                        class="px-2.5 py-1.5 rounded-lg border text-xs transition-colors"
+                        :class="currentPage === totalPages ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-white/10 text-slate-300 hover:bg-slate-800/60'"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-chevron-right" />
+                    </button>
                 </div>
             </div>
         </div>
