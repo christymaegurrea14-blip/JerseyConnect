@@ -95,7 +95,7 @@ const submit = () => {
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                        <label for="middle_name" class="text-xs font-semibold text-slate-300">Middle Name</label>
+                        <label for="middle_name" class="text-xs font-semibold text-slate-300">Middle Name <span class="text-slate-500 font-normal normal-case">(optional)</span></label>
                         <div class="relative flex items-center">
                             <font-awesome-icon icon="fa-solid fa-user-circle" class="absolute left-3.5 text-slate-500 text-sm pointer-events-none" />
                             <input

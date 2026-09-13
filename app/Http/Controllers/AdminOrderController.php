@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class AdminOrderController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $orders = Order::query()
             ->with(['address', 'courierReceipt.courier', 'designRequest.players'])
@@ -25,6 +25,7 @@ class AdminOrderController extends Controller
         return Inertia::render('Admin/Orders', [
             'orders' => $orders,
             'couriers' => Courier::where('status', true)->get(['id', 'name', 'site']),
+            'openOrderId' => $request->query('order'),
         ]);
     }
 

@@ -30,6 +30,7 @@ interface BestSellingTemplate {
 
 interface RecentOrder {
     id: string;
+    db_id: number;
     customer: string;
     template: string;
     amount: number;
@@ -42,6 +43,7 @@ interface NeedsAttentionItem {
     label: string;
     count: number;
     icon: string;
+    href: string;
 }
 
 interface DesignRequestItem {
@@ -61,6 +63,7 @@ interface RecentMessage {
     customer: string;
     preview: string;
     time: string;
+    design_request_id: number | null;
 }
 
 const props = defineProps<{
@@ -235,7 +238,10 @@ function statusChip(status: string) {
                 </div>
 
                 <!-- Revenue card -->
-                <div class="lg:col-span-4 glass-panel rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between shadow-xl">
+                <Link
+                    :href="route('admin.orders.index')"
+                    class="lg:col-span-4 glass-panel rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between shadow-xl transition-all hover:-translate-y-0.5 hover:border-indigo-500/30 cursor-pointer"
+                >
                     <div class="relative z-10">
                         <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Revenue this week</div>
                         <div class="flex items-baseline gap-1 mt-1.5">
@@ -271,34 +277,34 @@ function statusChip(status: string) {
                             <span>Today</span>
                         </div>
                     </div>
-                </div>
+                </Link>
             </section>
 
             <!-- Quick stats -->
             <section v-reveal="80" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
-                <div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+                <Link :href="route('admin.orders.index')" class="glass-panel p-4 rounded-xl flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:border-indigo-500/30 cursor-pointer">
                     <span class="text-xs font-medium text-slate-400 truncate">Total orders</span>
                     <div class="text-2xl font-bold text-white mt-1.5">{{ stats.totalOrders.value }}</div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl flex flex-col justify-between border-indigo-500/20">
+                </Link>
+                <Link :href="route('admin.design.index')" class="glass-panel p-4 rounded-xl flex flex-col justify-between border-indigo-500/20 transition-all hover:-translate-y-0.5 hover:border-indigo-500/30 cursor-pointer">
                     <span class="text-xs font-medium text-slate-400 truncate">Design requests</span>
                     <div class="text-2xl font-bold text-white mt-1.5 flex items-center justify-between">
                         <span>{{ stats.pendingDesignRequests.value }}</span>
                         <span v-if="stats.pendingDesignRequests.value > 0" class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                     </div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+                </Link>
+                <Link :href="route('admin.design.index')" class="glass-panel p-4 rounded-xl flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:border-indigo-500/30 cursor-pointer">
                     <span class="text-xs font-medium text-slate-400 truncate">Pending GCash</span>
                     <div class="text-2xl font-bold text-slate-300 mt-1.5">{{ stats.pendingGcash.value }}</div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+                </Link>
+                <Link :href="route('admin.messages.index')" class="glass-panel p-4 rounded-xl flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:border-indigo-500/30 cursor-pointer">
                     <span class="text-xs font-medium text-slate-400 truncate">Unread messages</span>
                     <div class="text-2xl font-bold text-slate-300 mt-1.5">{{ stats.unreadMessages.value }}</div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl flex flex-col justify-between col-span-2 sm:col-span-1">
+                </Link>
+                <Link :href="route('admin.users.index')" class="glass-panel p-4 rounded-xl flex flex-col justify-between col-span-2 sm:col-span-1 transition-all hover:-translate-y-0.5 hover:border-indigo-500/30 cursor-pointer">
                     <span class="text-xs font-medium text-slate-400 truncate">New users</span>
                     <div class="text-2xl font-bold text-white mt-1.5">{{ stats.newUsers.value }}</div>
-                </div>
+                </Link>
             </section>
 
             <!-- Needs attention -->
@@ -311,11 +317,12 @@ function statusChip(status: string) {
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div
+                    <Link
                         v-for="(n, i) in needsAttention"
                         :key="n.label"
+                        :href="n.href"
                         v-reveal="(i % 3) * 70"
-                        class="glass-panel rounded-xl p-4 flex items-center gap-3.5"
+                        class="glass-panel rounded-xl p-4 flex items-center gap-3.5 transition-all hover:-translate-y-0.5 hover:border-amber-500/30 cursor-pointer"
                     >
                         <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                             <font-awesome-icon :icon="n.icon" />
@@ -324,7 +331,7 @@ function statusChip(status: string) {
                             <h3 class="text-xs font-semibold text-slate-100 truncate">{{ n.label }}</h3>
                             <p class="text-[11px] text-slate-400 mt-0.5">{{ n.count }} item{{ n.count === 1 ? "" : "s" }}</p>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </section>
 
@@ -338,11 +345,12 @@ function statusChip(status: string) {
                 </div>
 
                 <div v-if="bestSellingTemplates.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div
+                    <Link
                         v-for="(t, i) in bestSellingTemplates"
                         :key="t.name"
+                        :href="route('admin.jersey.index')"
                         v-reveal="(i % 3) * 70"
-                        class="group glass-panel rounded-2xl p-4 flex flex-col gap-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-950/40"
+                        class="group glass-panel rounded-2xl p-4 flex flex-col gap-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-950/40 cursor-pointer"
                     >
                         <div class="relative w-full h-40 rounded-xl bg-white border border-white/5 flex items-center justify-center overflow-hidden">
                             <span
@@ -384,15 +392,14 @@ function statusChip(status: string) {
                             </div>
                         </div>
                         <div class="pt-3 mt-1 border-t border-white/5 flex items-center justify-between">
-                            <Link
-                                :href="route('admin.jersey.index')"
+                            <span
                                 class="text-xs font-semibold transition-colors"
                                 :class="cardAccents[i % cardAccents.length].text"
                             >
                                 View in catalog →
-                            </Link>
+                            </span>
                         </div>
-                    </div>
+                    </Link>
                 </div>
                 <p v-else class="text-sm text-slate-500">No orders yet.</p>
             </section>
@@ -407,10 +414,11 @@ function statusChip(status: string) {
                 </div>
 
                 <div v-if="recentOrders.length" class="glass-panel rounded-2xl overflow-hidden divide-y divide-white/5 shadow-md">
-                    <div
+                    <Link
                         v-for="o in recentOrders"
                         :key="o.id"
-                        class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-800/30 transition-colors"
+                        :href="route('admin.orders.index', { order: o.db_id })"
+                        class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-800/30 transition-colors cursor-pointer"
                     >
                         <div class="flex items-center gap-3.5">
                             <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
@@ -427,7 +435,7 @@ function statusChip(status: string) {
                             </span>
                             <span class="text-sm font-bold text-white tracking-tight">{{ formatCurrency(o.amount) }}</span>
                         </div>
-                    </div>
+                    </Link>
                 </div>
                 <p v-else class="text-sm text-slate-500">No orders yet.</p>
             </section>
@@ -440,12 +448,14 @@ function statusChip(status: string) {
                         <Link :href="route('admin.design.index')" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300">View all →</Link>
                     </div>
                     <ul v-if="designRequests.length" class="mt-4 divide-y divide-white/5">
-                        <li v-for="d in designRequests" :key="d.customer + d.date" class="flex items-center justify-between py-2.5 text-sm">
-                            <div>
-                                <p class="text-slate-200">{{ d.customer }}</p>
-                                <p class="text-[11px] text-slate-500">{{ d.date }}</p>
-                            </div>
-                            <span class="rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="statusChip(d.status)">{{ d.status }}</span>
+                        <li v-for="d in designRequests" :key="d.customer + d.date">
+                            <Link :href="route('admin.design.index')" class="flex items-center justify-between py-2.5 text-sm hover:opacity-80 transition-opacity">
+                                <div>
+                                    <p class="text-slate-200">{{ d.customer }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ d.date }}</p>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="statusChip(d.status)">{{ d.status }}</span>
+                            </Link>
                         </li>
                     </ul>
                     <p v-else class="mt-4 text-sm text-slate-500">No design requests yet.</p>
@@ -457,12 +467,14 @@ function statusChip(status: string) {
                         <Link :href="route('admin.gcash.index')" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300">View all →</Link>
                     </div>
                     <ul v-if="gcashTransactions.length" class="mt-4 divide-y divide-white/5">
-                        <li v-for="g in gcashTransactions" :key="g.ref" class="flex items-center justify-between py-2.5 text-sm">
-                            <div>
-                                <p class="text-slate-200">{{ g.customer }}</p>
-                                <p class="text-[11px] text-slate-500 font-mono">{{ g.ref }} · {{ formatCurrency(g.amount) }}</p>
-                            </div>
-                            <span class="rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="statusChip(g.status)">{{ g.status }}</span>
+                        <li v-for="g in gcashTransactions" :key="g.ref">
+                            <Link :href="route('admin.gcash.index')" class="flex items-center justify-between py-2.5 text-sm hover:opacity-80 transition-opacity">
+                                <div>
+                                    <p class="text-slate-200">{{ g.customer }}</p>
+                                    <p class="text-[11px] text-slate-500 font-mono">{{ g.ref }} · {{ formatCurrency(g.amount) }}</p>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="statusChip(g.status)">{{ g.status }}</span>
+                            </Link>
                         </li>
                     </ul>
                     <p v-else class="mt-4 text-sm text-slate-500">No GCash transactions yet.</p>
@@ -474,12 +486,17 @@ function statusChip(status: string) {
                         <Link :href="route('admin.messages.index')" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300">View all →</Link>
                     </div>
                     <ul v-if="recentMessages.length" class="mt-4 divide-y divide-white/5">
-                        <li v-for="m in recentMessages" :key="m.customer + m.time" class="py-2.5 text-sm">
-                            <div class="flex items-center justify-between">
-                                <p class="font-medium text-slate-200">{{ m.customer }}</p>
-                                <p class="text-[11px] text-slate-500">{{ m.time }}</p>
-                            </div>
-                            <p class="mt-0.5 truncate text-xs text-slate-500">{{ m.preview }}</p>
+                        <li v-for="m in recentMessages" :key="m.customer + m.time">
+                            <Link
+                                :href="m.design_request_id ? route('admin.messages.index', { design_request_id: m.design_request_id }) : route('admin.messages.index')"
+                                class="block py-2.5 text-sm hover:opacity-80 transition-opacity"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <p class="font-medium text-slate-200">{{ m.customer }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ m.time }}</p>
+                                </div>
+                                <p class="mt-0.5 truncate text-xs text-slate-500">{{ m.preview }}</p>
+                            </Link>
                         </li>
                     </ul>
                     <p v-else class="mt-4 text-sm text-slate-500">No messages yet.</p>

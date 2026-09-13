@@ -247,7 +247,7 @@ const submitCredentials = () => {
                                 <InputError class="mt-1.5" :message="user_information.errors.first_name" />
                             </div>
                             <div>
-                                <InputLabel for="middle_name" value="Middle Name" />
+                                <InputLabel for="middle_name">Middle Name <span class="text-ink/40 font-normal">(optional)</span></InputLabel>
                                 <TextInput
                                     id="middle_name"
                                     type="text"

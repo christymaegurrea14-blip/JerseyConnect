@@ -371,14 +371,14 @@ onMounted(() => {
                                 v-for="msg in liveActiveThread.messages"
                                 :key="msg.id"
                                 class="flex"
-                                :class="msg.from === 'client' ? 'justify-end' : 'justify-start'"
+                                :class="msg.from === 'admin' ? 'justify-end' : 'justify-start'"
                             >
                                 <div
                                     class="max-w-[85%] sm:max-w-[72%] rounded-xl px-4 py-2.5 text-sm leading-relaxed"
                                     :class="
-                                        msg.from === 'client'
-                                            ? 'rounded-br-sm bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
-                                            : 'rounded-bl-sm border border-white/10 bg-slate-800/60 text-slate-200'
+                                        msg.from === 'admin'
+                                            ? 'rounded-br-sm bg-indigo-600 text-white'
+                                            : 'rounded-bl-sm bg-cobalt text-white'
                                     "
                                 >
                                     <p class="mb-0.5 text-[10px] font-bold uppercase tracking-wide opacity-70">{{ msg.name }}</p>

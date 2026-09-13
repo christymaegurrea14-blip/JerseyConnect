@@ -185,6 +185,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn($order) => [
                 'id' => $order->order_number,
+                'db_id' => $order->id,
                 'customer' => $order->user->userInfo
                     ? trim($order->user->userInfo->first_name . ' ' . $order->user->userInfo->last_name)
                     : $order->user->email,
@@ -212,16 +213,19 @@ class DashboardController extends Controller
                 'label' => 'GCash payments awaiting verification',
                 'count' => $pendingGcash,
                 'icon' => 'fa-solid fa-wallet',
+                'href' => route('admin.design.index'),
             ],
             [
                 'label' => 'Design requests pending review',
                 'count' => $pendingDesignRequests,
                 'icon' => 'fa-solid fa-spray-can-sparkles',
+                'href' => route('admin.design.index'),
             ],
             [
                 'label' => 'Orders stuck in Processing 3+ days',
                 'count' => $stuckOrders,
                 'icon' => 'fa-solid fa-triangle-exclamation',
+                'href' => route('admin.orders.index'),
             ],
         ];
     }
@@ -274,7 +278,7 @@ class DashboardController extends Controller
 
     private function getRecentMessages()
     {
-        return Message::with('user.userInfo')
+        return Message::with(['user.userInfo', 'thread'])
             ->whereHas('user', fn($q) => $q->where('role', 'client'))
             ->latest()
             ->limit(3)
@@ -287,6 +291,7 @@ class DashboardController extends Controller
                 'time' => $m->created_at->isToday()
                     ? $m->created_at->format('g:i A')
                     : ($m->created_at->isYesterday() ? 'Yesterday' : $m->created_at->format('M d')),
+                'design_request_id' => $m->thread?->design_request_id,
             ]);
     }
 }

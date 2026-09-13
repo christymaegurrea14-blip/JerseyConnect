@@ -34,7 +34,7 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'first_name' => 'required|string|max:255',
-            'middle_name' => 'string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'birth_date' => 'required|date',
             'phone' => ['required', 'regex:/^9\d{9}$/'],

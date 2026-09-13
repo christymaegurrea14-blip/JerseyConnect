@@ -9,10 +9,11 @@ import { activeCouriers, getCourierById } from "@/types/couriers";
 import { formatCurrency } from "@/Composables/shipping";
 import { useModal } from "@/Composables/useModal";
 import { Head, Link, router, useForm, usePoll } from "@inertiajs/vue3";
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 
 const props = defineProps<{
     orders?: Order[];
+    openOrderId?: number | string | null;
 }>();
 
 usePoll(5000, {
@@ -211,6 +212,12 @@ function viewOrder(order: Order) {
     modal.icon.value = "fa-solid fa-shirt";
     modal.openModal();
 }
+
+onMounted(() => {
+    if (!props.openOrderId) return;
+    const target = orders.value.find((o) => o.id === Number(props.openOrderId));
+    if (target) viewOrder(target);
+});
 
 // --- Advance status / attach courier receipt ---
 const statusForm = useForm({
