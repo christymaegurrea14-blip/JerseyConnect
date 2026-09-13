@@ -28,6 +28,32 @@ function formatPeso(value: number) {
     return `₱${value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// ── Open GCash App shortcut (mobile only) ───────────────────────────────────
+// Not a real payment-gateway integration — no amount/recipient can be
+// pre-filled without a merchant API. This just launches the GCash app
+// itself (or the store listing if it isn't installed) so the client
+// doesn't have to hunt for the icon; they still send the amount manually
+// and submit proof below, same as today.
+const isMobile = computed(() => /android|iphone|ipad|ipod/i.test(navigator.userAgent));
+const isIOS = computed(() => /iphone|ipad|ipod/i.test(navigator.userAgent));
+
+function openGcashApp() {
+    const storeUrl = isIOS.value
+        ? "https://apps.apple.com/ph/app/gcash/id520020791"
+        : "https://play.google.com/store/apps/details?id=com.globe.gcash.android";
+
+    const clickedAt = Date.now();
+    window.location.href = "gcash://";
+
+    // If the app isn't installed, the browser tab stays in the foreground —
+    // after a short delay, send the client to install it instead.
+    setTimeout(() => {
+        if (!document.hidden && Date.now() - clickedAt < 2000) {
+            window.location.href = storeUrl;
+        }
+    }, 1200);
+}
+
 const copiedGcashNumber = ref(false);
 async function copyGcashNumber() {
     try {
@@ -140,6 +166,19 @@ function submitPayment() {
                             <p class="mt-2 text-xs text-ink/60 leading-relaxed">{{ gcash.instructions }}</p>
                         </div>
                     </div>
+
+                    <button
+                        v-if="isMobile"
+                        type="button"
+                        class="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-[#0072CE] text-white text-sm font-bold py-3 hover:bg-[#005fa8] transition-colors"
+                        @click="openGcashApp"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-mobile-screen-button" />
+                        Open GCash App
+                    </button>
+                    <p v-if="isMobile" class="mt-1.5 text-center text-[11px] text-ink/40">
+                        Opens the GCash app so you can send the amount yourself — you'll still submit the reference number and proof below.
+                    </p>
                 </div>
             </section>
 

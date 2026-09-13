@@ -73,7 +73,12 @@ class MessageThreadResource extends JsonResource
                 ($designRequest->user->userInfo?->first_name ?? '') . ' ' .
                     ($designRequest->user->userInfo?->last_name ?? '')
             ) ?: $designRequest->user->email,
+            'client_email' => $designRequest->user->email,
+            'client_phone' => $designRequest->user->userInfo?->phone,
             'read' => $isRead,
+            // Lets the admin see whether the client has actually seen their
+            // latest reply — the client side has no equivalent need.
+            'client_last_read_at' => $this->client_last_read_at?->toIso8601String(),
             'updated_at' => $lastMessage?->created_at ?? $this->updated_at,
             'closed' => $stage === 'order' && $order->status === 'completed',
             'messages' => MessageResource::collection($this->messages),

@@ -61,6 +61,9 @@ function submitPlayer() {
 }
 
 function deletePlayer(player: RosterPlayer) {
+    if (editingPlayerId.value === player.id) {
+        resetPlayerForm();
+    }
     router.delete(route("client.design.players.destroy", player.id), { preserveScroll: true });
 }
 

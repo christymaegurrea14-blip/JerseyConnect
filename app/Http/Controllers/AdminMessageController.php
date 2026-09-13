@@ -50,4 +50,15 @@ class AdminMessageController extends Controller
 
         return back();
     }
+
+    /**
+     * Let the admin manually flag a conversation for follow-up — the client
+     * side has no equivalent action.
+     */
+    public function markUnread(MessageThread $thread)
+    {
+        $thread->update(['admin_last_read_at' => null]);
+
+        return back();
+    }
 }

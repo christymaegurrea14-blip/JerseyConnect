@@ -25,6 +25,7 @@ class MessageResource extends JsonResource
             'name' => $name,
             'body' => $this->body,
             'time' => $this->created_at->timezone('Asia/Manila')->format('M j, g:i A'),
+            'created_at' => $this->created_at->toIso8601String(),
             'attachment_url' => $this->attachment_url,
             'attachment_name' => $this->attachment_path ? basename($this->attachment_path) : null,
         ];

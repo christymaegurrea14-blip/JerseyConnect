@@ -115,6 +115,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         // Admin Messages
         Route::post('/messages/{thread}/reply', [AdminMessageController::class, 'reply'])->name('messages.reply');
         Route::patch('/messages/{thread}/read', [AdminMessageController::class, 'markRead'])->name('messages.mark-read');
+        Route::patch('/messages/{thread}/unread', [AdminMessageController::class, 'markUnread'])->name('messages.mark-unread');
 
         // Admin Users
          Route::put('/users/{user}', [UserController::class, 'update'])->name('user.update');

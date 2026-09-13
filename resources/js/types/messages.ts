@@ -19,6 +19,7 @@ export interface ThreadMessage {
     name: string;
     body: string;
     time: string;
+    created_at: string;
     /** URL (or data URL, for the static-data demo) of an attached image. */
     attachment_url?: string | null;
     attachment_name?: string | null;
@@ -48,8 +49,11 @@ export interface MessageThread {
     template_name: string;
     template_image: string;
     client_name: string;
+    client_email: string;
+    client_phone: string | null;
 
     read: boolean;
+    client_last_read_at: string | null;
     updated_at: string; // ISO timestamp, used for sorting + "last active"
 
     messages: ThreadMessage[];

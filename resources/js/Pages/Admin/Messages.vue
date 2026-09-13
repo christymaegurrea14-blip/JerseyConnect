@@ -2,8 +2,10 @@
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Head, Link, router, useForm, usePoll } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
+import { formatCurrency } from "@/Composables/shipping";
 import type {
     MessageThread,
+    ThreadMessage,
     ConversationStage,
 } from "@/types/messages";
 
@@ -31,6 +33,7 @@ usePoll(1500, { only: ["threads"] });
 // ── State ────────────────────────────────────────────────────────────────────
 type TabKey = "all" | "design" | "order";
 const activeTab = ref<TabKey>("all");
+const search = ref("");
 const activeThread = ref<MessageThread | null>(null);
 const replyText = ref<string>("");
 const replyImage = ref<File | null>(null);
@@ -58,11 +61,23 @@ const sorted = computed<MessageThread[]>(() =>
 );
 
 const filtered = computed<MessageThread[]>(() => {
+    let list = sorted.value;
     if (activeTab.value === "design")
-        return sorted.value.filter((t) => t.stage === "design");
-    if (activeTab.value === "order")
-        return sorted.value.filter((t) => t.stage === "order");
-    return sorted.value;
+        list = list.filter((t) => t.stage === "design");
+    else if (activeTab.value === "order")
+        list = list.filter((t) => t.stage === "order");
+
+    const q = search.value.trim().toLowerCase();
+    if (q) {
+        list = list.filter(
+            (t) =>
+                t.team_name.toLowerCase().includes(q) ||
+                t.template_name.toLowerCase().includes(q) ||
+                t.client_name.toLowerCase().includes(q) ||
+                (t.order_ref ?? t.design_request_ref).toLowerCase().includes(q),
+        );
+    }
+    return list;
 });
 
 // Keep activeThread pointing at the live object from `threads` after every
@@ -74,6 +89,35 @@ const liveActiveThread = computed<MessageThread | null>(() => {
         activeThread.value
     );
 });
+
+const subtotal = computed(() => {
+    if (!liveActiveThread.value || !liveActiveThread.value.quantity) return null;
+    return liveActiveThread.value.quantity * liveActiveThread.value.unit_price;
+});
+
+const sizeDistribution = computed(() => {
+    if (!liveActiveThread.value) return [];
+    const counts: Record<string, number> = {};
+    for (const p of liveActiveThread.value.players) {
+        if (!p.size) continue;
+        counts[p.size] = (counts[p.size] ?? 0) + 1;
+    }
+    return Object.entries(counts);
+});
+
+// Read-receipt status for the admin's own latest message — the client side
+// has no equivalent since it can't see the admin's read state.
+const lastAdminMessageId = computed<string | null>(() => {
+    if (!liveActiveThread.value) return null;
+    const adminMessages = liveActiveThread.value.messages.filter((m) => m.from === "admin");
+    return adminMessages.length ? adminMessages[adminMessages.length - 1].id : null;
+});
+
+function isSeenByClient(msg: ThreadMessage): boolean {
+    const lastRead = liveActiveThread.value?.client_last_read_at;
+    if (!lastRead) return false;
+    return new Date(lastRead).getTime() >= new Date(msg.created_at).getTime();
+}
 
 function lastMessagePreview(thread: MessageThread): string {
     const last = thread.messages[thread.messages.length - 1];
@@ -111,6 +155,19 @@ function openThread(thread: MessageThread): void {
     }
 
     scrollThread();
+}
+
+/** Admin-only: flag a conversation as unread again for later follow-up. */
+function markThreadUnread(thread: MessageThread): void {
+    router.patch(
+        route("admin.messages.mark-unread", thread.id),
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ["threads"],
+        },
+    );
 }
 
 function scrollThread(): void {
@@ -213,13 +270,23 @@ onMounted(() => {
                 </div>
             </div>
 
-            <div v-reveal="80" class="flex gap-5 h-[calc(100dvh-220px)] md:h-[75dvh]">
+            <div v-reveal="80" class="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100dvh-220px)] md:h-[75dvh]">
+            <div class="lg:col-span-9 flex gap-5 min-h-0">
                 <aside
                     class="w-full md:w-[390px] flex-shrink-0 glass-panel rounded-2xl overflow-hidden flex-col"
                     :class="activeThread ? 'hidden md:flex' : 'flex'"
                 >
-                    <!-- Filter tabs -->
-                    <div class="p-3 border-b border-white/5 shrink-0">
+                    <!-- Search + filter tabs -->
+                    <div class="p-3 border-b border-white/5 shrink-0 space-y-2">
+                        <div class="relative">
+                            <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs" />
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search client, team, or design..."
+                                class="w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-slate-950/60 border border-white/5 text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30"
+                            />
+                        </div>
                         <div class="flex items-center bg-slate-950/60 p-1 rounded-lg border border-white/5">
                             <button
                                 v-for="tab in tabs"
@@ -356,6 +423,15 @@ onMounted(() => {
                                     <font-awesome-icon icon="fa-solid fa-circle-check" />
                                     Verify GCash
                                 </Link>
+                                <button
+                                    type="button"
+                                    title="Flag this conversation as unread, for follow-up later"
+                                    class="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800/60 transition-colors"
+                                    @click="markThreadUnread(liveActiveThread)"
+                                >
+                                    <font-awesome-icon icon="fa-solid fa-envelope" />
+                                    Mark unread
+                                </button>
                             </div>
                         </div>
 
@@ -378,7 +454,7 @@ onMounted(() => {
                                     :class="
                                         msg.from === 'admin'
                                             ? 'rounded-br-sm bg-indigo-600 text-white'
-                                            : 'rounded-bl-sm bg-cobalt text-white'
+                                            : 'rounded-bl-sm bg-slate-700/80 border border-white/10 text-slate-100'
                                     "
                                 >
                                     <p class="mb-0.5 text-[10px] font-bold uppercase tracking-wide opacity-70">{{ msg.name }}</p>
@@ -391,6 +467,13 @@ onMounted(() => {
                                     />
                                     <p v-if="msg.body">{{ msg.body }}</p>
                                     <p class="mt-1 text-right text-[10px] opacity-70">{{ msg.time }}</p>
+                                    <p
+                                        v-if="msg.from === 'admin' && msg.id === lastAdminMessageId"
+                                        class="mt-0.5 text-right text-[10px] font-semibold"
+                                        :class="isSeenByClient(msg) ? 'text-sky-300' : 'text-white/50'"
+                                    >
+                                        {{ isSeenByClient(msg) ? "Seen" : "Sent" }}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -456,6 +539,102 @@ onMounted(() => {
                     </template>
                 </main>
             </div>
+
+            <!-- Context panel (admin-only — the client chat has no equivalent) -->
+            <aside v-if="liveActiveThread" class="hidden lg:flex lg:col-span-3 flex-col gap-4 overflow-y-auto">
+                <div class="glass-panel rounded-2xl p-5">
+                    <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 mb-3">Order Specs</h2>
+                    <div class="aspect-square rounded-xl bg-white border border-white/10 flex items-center justify-center p-3 mb-3">
+                        <img :src="liveActiveThread.template_image" :alt="liveActiveThread.template_name" class="w-full h-full object-contain" />
+                    </div>
+                    <p class="text-sm font-bold text-white">{{ liveActiveThread.template_name }}</p>
+                    <p class="text-xs text-slate-500">{{ liveActiveThread.team_name }}</p>
+
+                    <div class="flex items-center gap-1.5 mt-3">
+                        <span class="w-4 h-4 rounded-full ring-1 ring-white/10 cursor-help" :title="liveActiveThread.primary_color" :style="{ backgroundColor: liveActiveThread.primary_color }"></span>
+                        <span class="w-4 h-4 rounded-full ring-1 ring-white/10 cursor-help" :title="liveActiveThread.secondary_color" :style="{ backgroundColor: liveActiveThread.secondary_color }"></span>
+                        <span class="w-4 h-4 rounded-full ring-1 ring-white/10 cursor-help" :title="liveActiveThread.accent_color" :style="{ backgroundColor: liveActiveThread.accent_color }"></span>
+                        <span v-if="liveActiveThread.font_style" class="ml-auto text-[11px] text-slate-500">{{ liveActiveThread.font_style }}</span>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-white/5 space-y-1.5 text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Price</span>
+                            <span class="font-bold text-white">{{ formatCurrency(liveActiveThread.unit_price) }} /set</span>
+                        </div>
+                        <div v-if="liveActiveThread.quantity" class="flex items-center justify-between">
+                            <span class="text-slate-500">Quantity</span>
+                            <span class="font-bold text-white">{{ liveActiveThread.quantity }} sets</span>
+                        </div>
+                        <div v-if="subtotal !== null" class="flex items-center justify-between">
+                            <span class="text-slate-500">Subtotal</span>
+                            <span class="font-bold text-white">{{ formatCurrency(subtotal) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client contact card — admin needs this to follow up outside chat; the client obviously doesn't need it about themselves. -->
+                <div class="glass-panel rounded-2xl p-5">
+                    <h2 class="text-xs font-black uppercase tracking-wide text-slate-500 mb-3">
+                        <font-awesome-icon icon="fa-solid fa-address-card" class="text-indigo-400" />
+                        Client Contact
+                    </h2>
+                    <p class="text-sm font-bold text-white truncate">{{ liveActiveThread.client_name }}</p>
+                    <div class="mt-2 space-y-1.5 text-xs">
+                        <a
+                            :href="`mailto:${liveActiveThread.client_email}`"
+                            class="flex items-center gap-2 text-slate-400 hover:text-indigo-300 transition-colors truncate"
+                        >
+                            <font-awesome-icon icon="fa-solid fa-envelope" class="text-slate-600 shrink-0" />
+                            <span class="truncate">{{ liveActiveThread.client_email }}</span>
+                        </a>
+                        <a
+                            v-if="liveActiveThread.client_phone"
+                            :href="`tel:${liveActiveThread.client_phone}`"
+                            class="flex items-center gap-2 text-slate-400 hover:text-indigo-300 transition-colors"
+                        >
+                            <font-awesome-icon icon="fa-solid fa-phone" class="text-slate-600 shrink-0" />
+                            {{ liveActiveThread.client_phone }}
+                        </a>
+                    </div>
+                    <Link
+                        :href="route('admin.users.index')"
+                        class="mt-3 inline-flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                    >
+                        View in Users
+                        <font-awesome-icon icon="fa-solid fa-arrow-right" class="text-[10px]" />
+                    </Link>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-xs font-black uppercase tracking-wide text-slate-500">
+                            <font-awesome-icon icon="fa-solid fa-users" class="text-indigo-400" />
+                            Team Roster
+                        </h2>
+                        <span class="text-xs text-slate-500">{{ liveActiveThread.players.length }}</span>
+                    </div>
+                    <div v-if="sizeDistribution.length" class="flex flex-wrap gap-1.5 mb-3">
+                        <span
+                            v-for="[size, count] in sizeDistribution"
+                            :key="size"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-300"
+                        >
+                            {{ size }}
+                            <span class="px-1 rounded-full bg-indigo-600 text-white text-[9px]">{{ count }}</span>
+                        </span>
+                    </div>
+                    <p v-else class="text-xs text-slate-500 mb-3">No roster submitted yet.</p>
+                    <Link
+                        :href="route('admin.design.index')"
+                        class="inline-flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                    >
+                        View in Design Requests
+                        <font-awesome-icon icon="fa-solid fa-arrow-right" class="text-[10px]" />
+                    </Link>
+                </div>
+            </aside>
+        </div>
         </div>
     </AdminLayout>
 </template>
