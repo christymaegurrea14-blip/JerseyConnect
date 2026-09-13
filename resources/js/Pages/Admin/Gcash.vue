@@ -26,7 +26,7 @@ type SubmissionStatus =
 interface GcashSubmission {
     id: number;
     team_name: string;
-    template_price: number;
+    amount: number;
     estimated_quantity: number | null;
     gcash_number: string | null;
     reference_number: string | null;
@@ -507,7 +507,7 @@ function printQr() {
                                     <p class="font-semibold text-white text-xs">{{ row.team_name }}</p>
                                     <p class="text-[11px] text-slate-400 mt-0.5">{{ row.customer_name }}<span v-if="row.estimated_quantity"> • {{ row.estimated_quantity }} pcs</span></p>
                                 </td>
-                                <td class="px-4 py-3 font-mono font-bold text-emerald-400 text-xs">{{ formatCurrency(row.template_price) }}</td>
+                                <td class="px-4 py-3 font-mono font-bold text-emerald-400 text-xs">{{ formatCurrency(row.amount) }}</td>
                                 <td class="px-4 py-3 font-mono text-slate-300 text-xs">{{ row.gcash_number || "—" }}</td>
                                 <td class="px-4 py-3">
                                     <a

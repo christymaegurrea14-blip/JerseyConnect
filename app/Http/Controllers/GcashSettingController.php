@@ -22,7 +22,12 @@ class GcashSettingController extends Controller
             ->map(fn (DesignRequest $dr) => [
                 'id' => $dr->id,
                 'team_name' => $dr->team_name,
-                'template_price' => $dr->template_price,
+                // The real 50% down payment amount — template_price is a
+                // PER-SET price, so this must factor in quantity too, not
+                // just be shown on its own (that was the bug: a 6-set order
+                // at ₱450/set was showing "₱450" as the amount instead of
+                // the real ₱1,350 down payment).
+                'amount' => (int) round($dr->template_price * ($dr->estimated_quantity ?: 1) * 0.5),
                 'estimated_quantity' => $dr->estimated_quantity,
                 'gcash_number' => $dr->gcash_number,
                 'reference_number' => $dr->reference_number,

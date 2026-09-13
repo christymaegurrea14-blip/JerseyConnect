@@ -7,7 +7,7 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { FontAwesomeIcon } from './plugins/fontawesome';
 import { vReveal } from './directives/reveal';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'PrintCode';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

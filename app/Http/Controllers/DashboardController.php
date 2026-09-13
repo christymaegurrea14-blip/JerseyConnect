@@ -271,7 +271,8 @@ class DashboardController extends Controller
                 'customer' => $dr->user->userInfo
                     ? trim($dr->user->userInfo->first_name . ' ' . $dr->user->userInfo->last_name)
                     : $dr->user->email,
-                'amount' => (int) round($dr->template_price * 0.5), // adjust if you store an actual down payment amount
+                // 50% of the real order total (per-set price × quantity), not just half the per-set price.
+                'amount' => (int) round($dr->template_price * ($dr->estimated_quantity ?: 1) * 0.5),
                 'status' => $dr->status === 'pending_down_payment_review' ? 'Pending' : 'Verified',
             ]);
     }

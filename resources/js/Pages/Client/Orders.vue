@@ -315,11 +315,12 @@ function confirmCancel() {
                             <button
                                 v-if="['processing', 'in_production', 'ready_for_delivery'].includes(row.data.status)"
                                 type="button"
-                                class="text-xs font-bold bg-good text-white rounded-lg px-2.5 py-2 transition-colors hover:bg-good/90"
+                                class="text-xs font-bold text-white rounded-lg px-2.5 py-2 transition-colors"
+                                :class="row.data.address.is_complete ? 'bg-good hover:bg-good/90' : 'bg-warn hover:bg-warn/90 animate-pulse'"
                                 @click="openAddressModal(row.data)"
                             >
-                                <font-awesome-icon icon="fa-solid fa-location-dot" />
-                                Address
+                                <font-awesome-icon :icon="row.data.address.is_complete ? 'fa-solid fa-location-dot' : 'fa-solid fa-triangle-exclamation'" />
+                                {{ row.data.address.is_complete ? "Address" : "Add Address" }}
                             </button>
                             <Link
                                 v-if="row.data.status !== 'completed'"
@@ -506,19 +507,34 @@ function confirmCancel() {
 
                         <!-- Delivery + cost -->
                         <div class="flex flex-col gap-4 w-full sm:w-2/3">
-                            <div class="border border-ink/10 rounded-xl p-3">
+                            <div class="border rounded-xl p-3" :class="selectedOrder.address.is_complete ? 'border-ink/10' : 'border-warn/30 bg-warn/5'">
                                 <p class="text-sm font-bold text-ink mb-2">
                                     <font-awesome-icon icon="fa-solid fa-location-dot" class="text-cobalt" />
                                     Delivery Address
                                 </p>
-                                <p class="text-sm text-ink/70">
-                                    {{ selectedOrder.address.recipient_name }} • {{ selectedOrder.address.contact_number }}
-                                </p>
-                                <p class="text-sm text-ink/70">
-                                    {{ selectedOrder.address.line1
-                                    }}<span v-if="selectedOrder.address.barangay">, {{ selectedOrder.address.barangay }}</span>,
-                                    {{ selectedOrder.address.city }}, {{ selectedOrder.address.province }} {{ selectedOrder.address.postal_code }}
-                                </p>
+                                <template v-if="selectedOrder.address.is_complete">
+                                    <p class="text-sm text-ink/70">
+                                        {{ selectedOrder.address.recipient_name }} • {{ selectedOrder.address.contact_number }}
+                                    </p>
+                                    <p class="text-sm text-ink/70">
+                                        {{ selectedOrder.address.line1
+                                        }}<span v-if="selectedOrder.address.barangay">, {{ selectedOrder.address.barangay }}</span>,
+                                        {{ selectedOrder.address.city }}, {{ selectedOrder.address.province }} {{ selectedOrder.address.postal_code }}
+                                    </p>
+                                </template>
+                                <template v-else>
+                                    <p class="text-sm text-warn font-medium flex items-center gap-1.5">
+                                        <font-awesome-icon icon="fa-solid fa-triangle-exclamation" />
+                                        No delivery address yet
+                                    </p>
+                                    <button
+                                        type="button"
+                                        class="mt-1.5 text-xs font-bold text-cobalt hover:text-cobalt-dark underline"
+                                        @click="openAddressModal(selectedOrder)"
+                                    >
+                                        Add it now
+                                    </button>
+                                </template>
                             </div>
 
                             <div class="border border-ink/10 rounded-xl p-3">

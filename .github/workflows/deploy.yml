@@ -28,6 +28,12 @@ jobs:
         run: |
           npm ci
           npm run build
+        env:
+          # .env is deliberately never deployed, so the CI build has no
+          # server .env to read APP_NAME from — without this, Vite bakes
+          # in its hardcoded "Laravel" fallback and every page title on
+          # production shows "<Page> - Laravel" instead of the real name.
+          VITE_APP_NAME: PrintCode
 
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0

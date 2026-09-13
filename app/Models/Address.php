@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class Address extends Model
 {
+    // Appended so every place that serializes an Address (client's order
+    // list, admin views, packing slip) can show a "no address yet" reminder
+    // without duplicating this completeness check on the frontend.
+    protected $appends = ['is_complete'];
+
     public function order()
     {
         return $this->belongsTo(Order::class);
@@ -32,5 +37,10 @@ class Address extends Model
             && filled($this->city)
             && filled($this->province)
             && filled($this->postal_code);
+    }
+
+    public function getIsCompleteAttribute(): bool
+    {
+        return $this->isComplete();
     }
 }

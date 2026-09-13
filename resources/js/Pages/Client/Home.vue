@@ -2,17 +2,16 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import Card from "@/Components/Card.vue";
 import CustomizeDesignModal from "@/Components/CustomizeDesignModal.vue";
-import type { ActiveOrder, JerseyTemplate } from "@/types/jersey";
-import { orderStatusBadge, ORDER_PIPELINE_STAGES, orderStageIndex } from "@/utils/orderStatus";
+import type { ActiveJourney, JerseyTemplate } from "@/types/jersey";
+import { JOURNEY_STAGES, journeyStageIndex, journeyStageLabel } from "@/utils/orderJourney";
 import { Head, Link, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 
 // Templates come from the admin-managed catalog (only "active" ones are sent).
 const props = defineProps<{
     data?: JerseyTemplate[];
-    activeOrder?: ActiveOrder | null;
+    activeJourney?: ActiveJourney | null;
     featuredJerseyId?: number | null;
-    pendingDesignRequestsCount?: number;
 }>();
 
 const page = usePage();
@@ -49,9 +48,12 @@ function formatPrice(value: number) {
     return `₱${value.toLocaleString("en-PH")}`;
 }
 
-// --- Active order pipeline (real data, shared with the Orders page so the
-// same order never shows a different progress percentage on each page) ---
-const activeStageIndex = computed(() => orderStageIndex(props.activeOrder?.status));
+// --- Active journey pipeline (real data) — spans design-request review all
+// the way through order delivery, so the tracker never has a gap between
+// "just customized a template" and "now it's an order in production."
+const activeStageIndex = computed(() =>
+    props.activeJourney ? journeyStageIndex(props.activeJourney.kind, props.activeJourney.status) : -1,
+);
 
 function formatDate(value: string) {
     return new Date(value).toLocaleDateString("en-PH", {
@@ -186,39 +188,49 @@ function closeCustomizeModal() {
             </div>
         </section>
 
-        <!-- ACTIVE ORDER PIPELINE (real) -->
+        <!-- ACTIVE JOURNEY PIPELINE (real) — spans design review through delivery -->
         <section v-reveal="80" class="mb-8">
-            <div v-if="activeOrder" class="rounded-2xl bg-white border border-ink/10 p-5 shadow-sm">
+            <div v-if="activeJourney" class="rounded-2xl bg-white border border-ink/10 p-5 shadow-sm">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-ink/10">
                     <div class="flex items-center gap-3">
                         <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-cobalt/10 text-cobalt">
-                            <font-awesome-icon icon="fa-solid fa-truck" />
+                            <font-awesome-icon :icon="activeJourney.kind === 'order' ? 'fa-solid fa-truck' : 'fa-solid fa-spray-can-sparkles'" />
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="text-xs font-black uppercase text-ink">{{ activeOrder.order_number }}</span>
+                                <span class="text-xs font-black uppercase text-ink">{{ activeJourney.reference }}</span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cobalt/10 text-cobalt uppercase tracking-wider flex items-center gap-1">
                                     <span class="w-1.5 h-1.5 rounded-full bg-cobalt animate-pulse"></span>
-                                    {{ orderStatusBadge[activeOrder!.status]?.label ?? activeOrder.status }}
+                                    {{ journeyStageLabel(activeJourney.kind, activeJourney.status) }}
                                 </span>
                             </div>
-                            <span class="text-xs text-ink/50 font-medium">{{ activeOrder.team_name }} • {{ activeOrder.quantity }} sets • {{ activeOrder.template_name }}</span>
+                            <span class="text-xs text-ink/50 font-medium">{{ activeJourney.team_name }} • {{ activeJourney.quantity ?? "?" }} sets • {{ activeJourney.template_name }}</span>
                         </div>
                     </div>
                     <Link
-                        :href="route('client.orders.index')"
+                        :href="activeJourney.kind === 'order' ? route('client.orders.index') : route('client.design.show', activeJourney.design_request_id)"
                         class="px-3 py-1.5 rounded-xl bg-ink/5 hover:bg-ink/10 text-ink text-xs font-bold flex items-center gap-1.5 transition-all shrink-0"
                     >
                         <font-awesome-icon icon="fa-solid fa-eye" class="text-cobalt" />
-                        <span>View Order</span>
+                        <span>{{ activeJourney.kind === 'order' ? "View Order" : "View Design Request" }}</span>
                     </Link>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                <!-- No delivery address yet — flag it before it blocks shipping -->
+                <div
+                    v-if="activeJourney.kind === 'order' && !activeJourney.address_complete"
+                    class="flex items-center gap-2.5 mb-4 px-3.5 py-2.5 rounded-xl bg-warn/10 border border-warn/20 text-warn text-xs font-semibold"
+                >
+                    <font-awesome-icon icon="fa-solid fa-triangle-exclamation" />
+                    <span class="flex-1">You haven't added a delivery address for this order yet — add one so it's ready once it ships.</span>
+                    <Link :href="route('client.orders.index')" class="underline hover:no-underline shrink-0">Add now</Link>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2.5">
                     <div
-                        v-for="(stage, i) in ORDER_PIPELINE_STAGES"
-                        :key="stage.value"
-                        class="flex items-start gap-3 p-3 rounded-xl border"
+                        v-for="(stage, i) in JOURNEY_STAGES"
+                        :key="stage.key"
+                        class="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border text-center"
                         :class="i < activeStageIndex
                             ? 'bg-good/5 border-good/20'
                             : i === activeStageIndex
@@ -226,7 +238,7 @@ function closeCustomizeModal() {
                                 : 'bg-ink/[0.02] border-dashed border-ink/10 opacity-70'"
                     >
                         <div
-                            class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs"
+                            class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-bold text-xs"
                             :class="i < activeStageIndex
                                 ? 'bg-good text-white'
                                 : i === activeStageIndex
@@ -237,13 +249,13 @@ function closeCustomizeModal() {
                             <span v-else>{{ i + 1 }}</span>
                         </div>
                         <div class="min-w-0">
-                            <p class="text-xs font-bold text-ink">{{ stage.label }}</p>
-                            <p v-if="stage.value === 'shipped' && activeOrder.courier_receipt" class="text-[11px] text-ink/50 truncate">
-                                {{ activeOrder.courier_receipt.courier?.name }} • {{ activeOrder.courier_receipt.transaction_number }}
+                            <p class="text-[11px] font-bold text-ink leading-tight">{{ stage.label }}</p>
+                            <p v-if="stage.key === 'shipped' && activeJourney.courier_receipt" class="text-[10px] text-ink/50 truncate">
+                                {{ activeJourney.courier_receipt.courier?.name }}
                             </p>
-                            <p v-else-if="i === activeStageIndex" class="text-[11px] text-cobalt font-semibold">In progress</p>
-                            <p v-else-if="i < activeStageIndex" class="text-[11px] text-ink/50">Done</p>
-                            <p v-else class="text-[11px] text-ink/40">Upcoming</p>
+                            <p v-else-if="i === activeStageIndex" class="text-[10px] text-cobalt font-semibold">In progress</p>
+                            <p v-else-if="i < activeStageIndex" class="text-[10px] text-ink/50">Done</p>
+                            <p v-else class="text-[10px] text-ink/40">Upcoming</p>
                         </div>
                     </div>
                 </div>
@@ -257,9 +269,7 @@ function closeCustomizeModal() {
                     </div>
                     <div>
                         <p class="text-sm font-bold text-ink">No active order yet</p>
-                        <p class="text-xs text-ink/50">
-                            {{ pendingDesignRequestsCount ? `You have ${pendingDesignRequestsCount} design request${pendingDesignRequestsCount === 1 ? '' : 's'} in review.` : "Pick a template below to start your first design request." }}
-                        </p>
+                        <p class="text-xs text-ink/50">Pick a template below to start your first design request.</p>
                     </div>
                 </div>
                 <a href="#catalog-grid" class="px-4 py-2 rounded-xl bg-cobalt/10 text-cobalt text-xs font-bold hover:bg-cobalt/20 transition-all shrink-0">

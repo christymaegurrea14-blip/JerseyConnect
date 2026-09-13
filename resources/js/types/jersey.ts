@@ -37,15 +37,24 @@ export interface CourierReceipt {
     courier: { id: number; name: string; site: string | null } | null;
 }
 
-export interface ActiveOrder {
+// The client's single "what's happening with my kit right now" item — spans
+// the real lifecycle from a just-submitted design request all the way
+// through order delivery, so the home page tracker stays continuous instead
+// of only appearing once a design request has become an order.
+export interface ActiveJourney {
+    kind: "design" | "order";
     id: number;
-    order_number: string;
+    reference: string; // order_number, or a "DR-2026-0001"-style design ref
+    design_request_id: number;
     template_name: string;
+    template_image: string | null;
     team_name: string;
-    quantity: number;
-    status: OrderStatus;
+    quantity: number | null;
+    status: DesignRequestStatus | OrderStatus;
     created_at: string;
     courier_receipt: CourierReceipt | null;
+    /** Only meaningful when kind === "order" — whether a delivery address has been filled in yet. */
+    address_complete: boolean;
 }
 
 export type PlayerSize = "XS" | "S" | "M" | "L" | "XL" | "XXL" | "3XL";

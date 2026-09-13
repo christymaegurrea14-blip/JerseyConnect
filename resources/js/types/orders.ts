@@ -26,6 +26,7 @@ export interface Address {
     is_default?: boolean;
     latitude?: number | null;
     longitude?: number | null;
+    is_complete: boolean;
 }
 
 /**

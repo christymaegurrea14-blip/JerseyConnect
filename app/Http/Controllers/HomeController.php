@@ -16,11 +16,8 @@ class HomeController extends Controller
     {
         return Inertia::render('Client/Home', [
             'data' => $this->activeJerseys(),
-            'activeOrder' => $this->getActiveOrder(),
+            'activeJourney' => $this->getActiveJourney(),
             'featuredJerseyId' => $this->getBestSellingJerseyId(),
-            'pendingDesignRequestsCount' => DesignRequest::where('user_id', Auth::id())
-                ->whereIn('status', ['pending_review', 'in_discussion', 'revision_requested'])
-                ->count(),
         ]);
     }
 
@@ -79,28 +76,68 @@ class HomeController extends Controller
     }
 
     /**
-     * The customer's most recent order that hasn't reached "completed" yet —
-     * powers the real production-pipeline widget on the home page.
+     * The customer's single "what's happening with my kit right now" item —
+     * powers the real journey-pipeline widget on the home page. This spans
+     * the whole real lifecycle, not just the order half of it: a design
+     * request still being reviewed/discussed/paid for counts just as much
+     * as an order already in production, so the tracker stays continuous
+     * from "just customized a template" through to "delivered."
+     *
+     * Prefers whichever of the two (order vs. design request) was most
+     * recently updated, so if a client has an old finished order and a
+     * brand-new design request in review, the new one shows.
      */
-    private function getActiveOrder(): ?array
+    private function getActiveJourney(): ?array
     {
         $order = Order::where('user_id', Auth::id())
             ->where('status', '!=', 'completed')
-            ->with('courierReceipt.courier')
+            ->with(['courierReceipt.courier', 'address'])
             ->latest()
             ->first();
 
-        if (! $order) {
-            return null;
+        $design = DesignRequest::where('user_id', Auth::id())
+            ->whereIn('status', [
+                'pending_review', 'in_discussion', 'revision_requested',
+                'waiting_for_down_payment', 'pending_down_payment_review',
+            ])
+            ->latest()
+            ->first();
+
+        if ($order && (! $design || $order->updated_at->gte($design->updated_at))) {
+            return [
+                'kind' => 'order',
+                'id' => $order->id,
+                'reference' => $order->order_number,
+                'design_request_id' => $order->design_request_id,
+                'template_name' => $order->template_name,
+                'template_image' => $order->template_image_url,
+                'team_name' => $order->team_name,
+                'quantity' => $order->quantity,
+                'status' => $order->status,
+                'created_at' => $order->created_at,
+                'courier_receipt' => $order->courierReceipt,
+                'address_complete' => $order->address?->isComplete() ?? false,
+            ];
         }
 
-        return [
-            ...$order->only([
-                'id', 'order_number', 'template_name', 'team_name',
-                'quantity', 'status', 'created_at',
-            ]),
-            'courier_receipt' => $order->courierReceipt,
-        ];
+        if ($design) {
+            return [
+                'kind' => 'design',
+                'id' => $design->id,
+                'reference' => sprintf('DR-%d-%04d', $design->created_at->year, $design->id),
+                'design_request_id' => $design->id,
+                'template_name' => $design->template_name,
+                'template_image' => $design->template_image_url,
+                'team_name' => $design->team_name,
+                'quantity' => $design->estimated_quantity,
+                'status' => $design->status,
+                'created_at' => $design->created_at,
+                'courier_receipt' => null,
+                'address_complete' => false,
+            ];
+        }
+
+        return null;
     }
 
     /**
