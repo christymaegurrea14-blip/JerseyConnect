@@ -8,12 +8,13 @@ import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
 import LocationPicker from "@/Components/LocationPicker.vue";
-import type { Order, OrderStatus } from "@/types/orders";
+import type { Order } from "@/types/orders";
 import type { DesignRequest } from "@/types/jersey";
 import { getCourierById } from "@/types/couriers";
 import { formatCurrency } from "@/Composables/shipping";
 import { useModal } from "@/Composables/useModal";
 import { statusBadge as designStatusBadge, formatDate } from "@/utils/designRequestStatus";
+import { orderStatusBadge, ORDER_PIPELINE_STAGES, orderStageIndex } from "@/utils/orderStatus";
 import { Head, Link, useForm, usePoll, router } from "@inertiajs/vue3";
 import { ref, computed, watch } from "vue";
 
@@ -44,30 +45,6 @@ const unifiedRows = computed<UnifiedRow[]>(() => {
     ];
     return rows.sort((a, b) => new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime());
 });
-
-const orderStatusBadge: Record<OrderStatus, { label: string; class: string }> = {
-    processing: { label: "Processing", class: "bg-yellow-100 text-yellow-700" },
-    in_production: { label: "In Production", class: "bg-blue-100 text-blue-700" },
-    ready_for_delivery: { label: "Ready for Delivery", class: "bg-purple-100 text-purple-700" },
-    shipped: { label: "Shipped", class: "bg-indigo-100 text-indigo-700" },
-    delivered: { label: "Delivered", class: "bg-teal-100 text-teal-700" },
-    completed: { label: "Completed", class: "bg-green-100 text-green-700" },
-};
-
-// Real 6-stage production/delivery flow (same as Order::STATUS_FLOW).
-const ORDER_PIPELINE_STAGES: { value: OrderStatus; label: string }[] = [
-    { value: "processing", label: "Processing" },
-    { value: "in_production", label: "In Production" },
-    { value: "ready_for_delivery", label: "Ready" },
-    { value: "shipped", label: "Shipped" },
-    { value: "delivered", label: "Delivered" },
-    { value: "completed", label: "Completed" },
-];
-
-function orderStageIndex(order: Order | null) {
-    if (!order) return -1;
-    return ORDER_PIPELINE_STAGES.findIndex((s) => s.value === order.status);
-}
 
 function rowImage(row: UnifiedRow) {
     return row.kind === "order" ? row.data.template_image : row.data.template_image_url;
@@ -480,9 +457,9 @@ function confirmCancel() {
                                 :key="stage.value"
                                 class="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border text-center"
                                 :class="
-                                    i < orderStageIndex(selectedOrder)
+                                    i < orderStageIndex(selectedOrder?.status)
                                         ? 'bg-good/5 border-good/20'
-                                        : i === orderStageIndex(selectedOrder)
+                                        : i === orderStageIndex(selectedOrder?.status)
                                             ? 'bg-cobalt/5 border-cobalt/20 shadow-xs'
                                             : 'bg-ink/[0.02] border-dashed border-ink/10 opacity-70'
                                 "
@@ -490,14 +467,14 @@ function confirmCancel() {
                                 <div
                                     class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px]"
                                     :class="
-                                        i < orderStageIndex(selectedOrder)
+                                        i < orderStageIndex(selectedOrder?.status)
                                             ? 'bg-good text-white'
-                                            : i === orderStageIndex(selectedOrder)
+                                            : i === orderStageIndex(selectedOrder?.status)
                                                 ? 'bg-cobalt text-white'
                                                 : 'bg-ink/10 text-ink/40'
                                     "
                                 >
-                                    <font-awesome-icon v-if="i < orderStageIndex(selectedOrder)" icon="fa-solid fa-check" class="text-[10px]" />
+                                    <font-awesome-icon v-if="i < orderStageIndex(selectedOrder?.status)" icon="fa-solid fa-check" class="text-[10px]" />
                                     <span v-else>{{ i + 1 }}</span>
                                 </div>
                                 <p class="text-[11px] font-bold text-ink leading-tight">{{ stage.label }}</p>

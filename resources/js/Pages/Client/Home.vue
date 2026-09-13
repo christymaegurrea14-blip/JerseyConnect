@@ -2,7 +2,8 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import Card from "@/Components/Card.vue";
 import CustomizeDesignModal from "@/Components/CustomizeDesignModal.vue";
-import type { ActiveOrder, JerseyTemplate, OrderStatus } from "@/types/jersey";
+import type { ActiveOrder, JerseyTemplate } from "@/types/jersey";
+import { orderStatusBadge, ORDER_PIPELINE_STAGES, orderStageIndex } from "@/utils/orderStatus";
 import { Head, Link, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 
@@ -48,19 +49,9 @@ function formatPrice(value: number) {
     return `₱${value.toLocaleString("en-PH")}`;
 }
 
-// --- Active order pipeline (real data) ---
-const ORDER_STAGES: { value: OrderStatus; label: string }[] = [
-    { value: "processing", label: "Processing" },
-    { value: "in_production", label: "In Production" },
-    { value: "ready_for_delivery", label: "Ready for Delivery" },
-    { value: "shipped", label: "Shipped" },
-    { value: "delivered", label: "Delivered" },
-];
-
-const activeStageIndex = computed(() => {
-    if (!props.activeOrder) return -1;
-    return ORDER_STAGES.findIndex((s) => s.value === props.activeOrder!.status);
-});
+// --- Active order pipeline (real data, shared with the Orders page so the
+// same order never shows a different progress percentage on each page) ---
+const activeStageIndex = computed(() => orderStageIndex(props.activeOrder?.status));
 
 function formatDate(value: string) {
     return new Date(value).toLocaleDateString("en-PH", {
@@ -208,7 +199,7 @@ function closeCustomizeModal() {
                                 <span class="text-xs font-black uppercase text-ink">{{ activeOrder.order_number }}</span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cobalt/10 text-cobalt uppercase tracking-wider flex items-center gap-1">
                                     <span class="w-1.5 h-1.5 rounded-full bg-cobalt animate-pulse"></span>
-                                    {{ ORDER_STAGES.find(s => s.value === activeOrder!.status)?.label ?? activeOrder.status }}
+                                    {{ orderStatusBadge[activeOrder!.status]?.label ?? activeOrder.status }}
                                 </span>
                             </div>
                             <span class="text-xs text-ink/50 font-medium">{{ activeOrder.team_name }} • {{ activeOrder.quantity }} sets • {{ activeOrder.template_name }}</span>
@@ -223,9 +214,9 @@ function closeCustomizeModal() {
                     </Link>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
                     <div
-                        v-for="(stage, i) in ORDER_STAGES"
+                        v-for="(stage, i) in ORDER_PIPELINE_STAGES"
                         :key="stage.value"
                         class="flex items-start gap-3 p-3 rounded-xl border"
                         :class="i < activeStageIndex
