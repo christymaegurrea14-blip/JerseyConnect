@@ -24,6 +24,13 @@ class Address extends Model
     // without duplicating this completeness check on the frontend.
     protected $appends = ['is_complete'];
 
+    // Without this, Eloquent returns these DECIMAL columns as strings, and
+    // the frontend's `.toFixed()` calls on them throw a TypeError.
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class);
