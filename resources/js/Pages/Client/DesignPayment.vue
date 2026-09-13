@@ -28,30 +28,36 @@ function formatPeso(value: number) {
     return `₱${value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// ── Open GCash App shortcut (mobile only) ───────────────────────────────────
+// ── Open GCash App shortcut (Android only) ──────────────────────────────────
 // Not a real payment-gateway integration — no amount/recipient can be
 // pre-filled without a merchant API. This just launches the GCash app
-// itself (or the store listing if it isn't installed) so the client
+// itself (or the Play Store listing if it isn't installed) so the client
 // doesn't have to hunt for the icon; they still send the amount manually
 // and submit proof below, same as today.
-const isMobile = computed(() => /android|iphone|ipad|ipod/i.test(navigator.userAgent));
-const isIOS = computed(() => /iphone|ipad|ipod/i.test(navigator.userAgent));
+//
+// Android-only: Chrome for Android supports "intent://" URIs that can
+// launch an installed app's own launcher activity by package name (the
+// same thing tapping its home-screen icon does), with a NATIVE fallback
+// to browser_fallback_url if the app isn't installed — no timing/guessing
+// hacks needed, and no dependency on GCash's internal deep-link scheme.
+// iOS/Safari has no equivalent "launch by package name" mechanism, and
+// GCash's real iOS URL scheme isn't something we can verify from here, so
+// the button is hidden on iOS rather than shipping an unverified guess.
+const isAndroid = computed(() => /android/i.test(navigator.userAgent));
+
+const GCASH_PACKAGE = "com.globe.gcash.android";
+const GCASH_PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${GCASH_PACKAGE}`;
 
 function openGcashApp() {
-    const storeUrl = isIOS.value
-        ? "https://apps.apple.com/ph/app/gcash/id520020791"
-        : "https://play.google.com/store/apps/details?id=com.globe.gcash.android";
+    const intentUrl =
+        "intent://#Intent;" +
+        `package=${GCASH_PACKAGE};` +
+        "action=android.intent.action.MAIN;" +
+        "category=android.intent.category.LAUNCHER;" +
+        `S.browser_fallback_url=${encodeURIComponent(GCASH_PLAY_STORE_URL)};` +
+        "end";
 
-    const clickedAt = Date.now();
-    window.location.href = "gcash://";
-
-    // If the app isn't installed, the browser tab stays in the foreground —
-    // after a short delay, send the client to install it instead.
-    setTimeout(() => {
-        if (!document.hidden && Date.now() - clickedAt < 2000) {
-            window.location.href = storeUrl;
-        }
-    }, 1200);
+    window.location.href = intentUrl;
 }
 
 const copiedGcashNumber = ref(false);
@@ -168,7 +174,7 @@ function submitPayment() {
                     </div>
 
                     <button
-                        v-if="isMobile"
+                        v-if="isAndroid"
                         type="button"
                         class="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-[#0072CE] text-white text-sm font-bold py-3 hover:bg-[#005fa8] transition-colors"
                         @click="openGcashApp"
@@ -176,7 +182,7 @@ function submitPayment() {
                         <font-awesome-icon icon="fa-solid fa-mobile-screen-button" />
                         Open GCash App
                     </button>
-                    <p v-if="isMobile" class="mt-1.5 text-center text-[11px] text-ink/40">
+                    <p v-if="isAndroid" class="mt-1.5 text-center text-[11px] text-ink/40">
                         Opens the GCash app so you can send the amount yourself — you'll still submit the reference number and proof below.
                     </p>
                 </div>
