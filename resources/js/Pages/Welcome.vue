@@ -37,10 +37,12 @@ const featuredJerseys = computed(() => {
 
 const remainingCatalogCount = computed(() => Math.max(jerseys.value.length - featuredJerseys.value.length, 0));
 
+// Solid fills — this badge sits directly over the white jersey photo now,
+// so the old light-text-on-dark-backdrop treatment lost all contrast.
 const badgeClass: Record<string, string> = {
-    New: "text-cyan-300 border-cyan-500/30",
-    Hot: "text-orange-300 border-orange-500/30",
-    Bestseller: "text-amber-300 border-amber-500/30",
+    New: "bg-cyan-600 text-white border-cyan-700",
+    Hot: "bg-orange-600 text-white border-orange-700",
+    Bestseller: "bg-amber-600 text-white border-amber-700",
 };
 
 function formatPrice(value: number) {
@@ -276,14 +278,15 @@ onUnmounted(() => {
                                         v-for="(jersey, i) in heroJerseys"
                                         :key="jersey.id"
                                         href="#catalog"
-                                        class="group relative rounded-xl overflow-hidden border-2 border-slate-200 hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-500/20 transition-all duration-300 aspect-[3/4] flex flex-col items-center justify-end"
+                                        class="group relative rounded-xl overflow-hidden border-2 border-slate-200 hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-500/20 transition-all duration-300 aspect-[3/4] flex flex-col bg-white"
                                     >
-                                        <div
-                                            class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                                            :style="{ backgroundImage: jersey.imagePath ? `url(${jersey.imagePath})` : undefined, backgroundColor: jersey.primaryColor }"
-                                        ></div>
-                                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
-                                        <div class="relative z-10 w-full p-1.5 flex items-center justify-between">
+                                        <div class="relative flex-1 min-h-0 bg-white">
+                                            <div
+                                                class="absolute inset-1.5 bg-contain bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
+                                                :style="{ backgroundImage: jersey.imagePath ? `url(${jersey.imagePath})` : undefined }"
+                                            ></div>
+                                        </div>
+                                        <div class="relative z-10 w-full p-1.5 flex items-center justify-between bg-ink shrink-0">
                                             <span class="text-[9px] font-bold text-white truncate">{{ jersey.name }}</span>
                                             <span class="w-5 h-5 rounded bg-white text-slate-900 font-bold text-[10px] flex items-center justify-center shadow shrink-0">
                                                 {{ String.fromCharCode(65 + i) }}
@@ -441,20 +444,19 @@ onUnmounted(() => {
                         v-reveal="i * 90"
                         class="glass-panel glass-panel-hover rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:-translate-y-1.5"
                     >
-                        <div class="h-64 relative flex flex-col items-center justify-center text-center overflow-hidden">
+                        <div class="h-64 relative flex flex-col items-center justify-center text-center overflow-hidden bg-white">
                             <div
-                                class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                                :style="{ backgroundImage: jersey.imagePath ? `url(${jersey.imagePath})` : undefined, backgroundColor: jersey.primaryColor }"
+                                class="absolute inset-3 bg-contain bg-center bg-no-repeat transition-transform duration-500 group-hover:scale-110"
+                                :style="{ backgroundImage: jersey.imagePath ? `url(${jersey.imagePath})` : undefined }"
                             ></div>
-                            <div class="absolute inset-0 bg-gradient-to-t from-obsidian-950/90 via-obsidian-950/10 to-transparent"></div>
                             <span
                                 v-if="jersey.badge"
-                                class="absolute top-3 left-3 bg-obsidian-950/80 backdrop-blur-md px-2.5 py-1 rounded text-[10px] font-bold uppercase border"
+                                class="absolute top-3 left-3 z-10 px-2.5 py-1 rounded text-[10px] font-bold uppercase border shadow-sm"
                                 :class="badgeClass[jersey.badge]"
                             >
                                 {{ jersey.badge }}
                             </span>
-                            <span class="absolute bottom-3 right-3 text-[11px] font-mono text-white/80 bg-black/40 px-2 py-0.5 rounded">{{ jersey.sport }}</span>
+                            <span class="absolute bottom-3 right-3 z-10 text-[11px] font-mono text-ink/70 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded shadow-sm">{{ jersey.sport }}</span>
                         </div>
                         <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
                             <div>
