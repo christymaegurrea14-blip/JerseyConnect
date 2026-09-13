@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import Modal from "@/Components/Modal.vue";
+import ModalHeader from "@/Components/ModalHeader.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import SelectInput from "@/Components/SelectInput.vue";
@@ -24,20 +25,60 @@ interface userInfo {
 
 interface User {
     id: number;
-    user_info: userInfo;
+    user_info: userInfo | null;
     email: string;
     status: "active" | "inactive";
     created_at: string;
     updated_at: string;
 }
 
+type OrderStatus = "processing" | "in_production" | "ready_for_delivery" | "shipped" | "delivered" | "completed";
+
+interface RecentOrder {
+    id: number;
+    order_number: string;
+    team_name: string;
+    quantity: number;
+    status: OrderStatus;
+    amount: number;
+    created_at: string;
+    customer_name: string;
+}
+
 const props = defineProps<{
     data?: User[];
+    recentOrders?: RecentOrder[];
 }>();
 
 type userStatus = "active" | "inactive";
 
 const users = computed(() => props.data ?? []);
+const recentOrders = computed(() => props.recentOrders ?? []);
+
+const orderStatusBadge: Record<OrderStatus, { label: string; class: string }> = {
+    processing: { label: "Processing", class: "bg-amber-500/15 text-amber-300 border-amber-500/25" },
+    in_production: { label: "In Production", class: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25" },
+    ready_for_delivery: { label: "Ready for Delivery", class: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25" },
+    shipped: { label: "Shipped", class: "bg-purple-500/15 text-purple-300 border-purple-500/25" },
+    delivered: { label: "Delivered", class: "bg-teal-500/15 text-teal-300 border-teal-500/25" },
+    completed: { label: "Completed", class: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" },
+};
+
+function formatCurrency(value: number) {
+    return `₱${value.toLocaleString("en-PH")}`;
+}
+
+function timeAgo(value: string) {
+    const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
 
 const activeCount = computed(
     () => users.value.filter((u) => u.status === "active").length,
@@ -45,6 +86,11 @@ const activeCount = computed(
 const inactiveCount = computed(
     () => users.value.filter((u) => u.status === "inactive").length,
 );
+const newThisWeekCount = computed(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return users.value.filter((u) => new Date(u.created_at) >= weekAgo).length;
+});
 
 const userStatus: Record<userStatus, { label: string; class: string }> = {
     active: {
@@ -62,9 +108,34 @@ const statusOptions = [
     { value: "inactive", label: "Inactive" },
 ];
 
+const avatarPalette = [
+    "from-amber-500/30 to-orange-500/20 border-amber-500/30 text-amber-300",
+    "from-cyan-600 to-indigo-600 border-transparent text-white",
+    "from-purple-500/30 to-indigo-500/20 border-purple-500/30 text-purple-300",
+    "from-emerald-500/30 to-teal-500/20 border-emerald-500/30 text-emerald-300",
+    "from-cyan-500/30 to-blue-500/20 border-cyan-500/30 text-cyan-300",
+];
+
+function avatarClass(email: string) {
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash = (hash * 31 + email.charCodeAt(i)) >>> 0;
+    return avatarPalette[hash % avatarPalette.length];
+}
+
+function userInitials(info: userInfo | null) {
+    if (!info) return "?";
+    return `${info.first_name?.[0] ?? ""}${info.last_name?.[0] ?? ""}`.toUpperCase() || "?";
+}
+
+function userFullName(info: userInfo | null) {
+    if (!info) return "No info provided";
+    return [info.first_name, info.middle_name, info.last_name].filter(Boolean).join(" ");
+}
+
 const searchQuery = ref("");
 const dateFrom = ref("");
 const dateTo = ref("");
+const statusFilter = ref<"all" | userStatus>("all");
 const perPage = ref(10);
 const perPageOptions = [5, 10, 25, 50];
 const currentPage = ref(1);
@@ -72,6 +143,9 @@ const currentPage = ref(1);
 const filteredUsers = computed(() => {
     let list = users.value;
 
+    if (statusFilter.value !== "all") {
+        list = list.filter((u) => u.status === statusFilter.value);
+    }
     if (dateFrom.value) {
         const from = new Date(dateFrom.value);
         list = list.filter((u) => new Date(u.created_at) >= from);
@@ -87,13 +161,13 @@ const filteredUsers = computed(() => {
         list = list.filter(
             (u) =>
                 u.email.toLowerCase().includes(q) ||
-                `${u.user_info.first_name} ${u.user_info.last_name}`.toLowerCase().includes(q),
+                `${u.user_info?.first_name ?? ""} ${u.user_info?.last_name ?? ""}`.toLowerCase().includes(q),
         );
     }
     return list;
 });
 
-watch([dateFrom, dateTo, searchQuery, perPage], () => {
+watch([dateFrom, dateTo, searchQuery, statusFilter, perPage], () => {
     currentPage.value = 1;
 });
 
@@ -119,10 +193,11 @@ function clearFilters() {
     dateFrom.value = "";
     dateTo.value = "";
     searchQuery.value = "";
+    statusFilter.value = "all";
 }
 
 const hasActiveFilters = computed(
-    () => !!dateFrom.value || !!dateTo.value || !!searchQuery.value.trim(),
+    () => !!dateFrom.value || !!dateTo.value || !!searchQuery.value.trim() || statusFilter.value !== "all",
 );
 
 const modal = useModal();
@@ -175,94 +250,139 @@ function submitEdit() {
     <AdminLayout>
         <div class="space-y-6">
             <!-- Header -->
-            <div class="flex flex-col gap-1">
-                <h1 class="text-2xl font-extrabold text-white tracking-tight">Users</h1>
-                <p class="text-sm text-slate-400">
-                    {{ users.length }} user{{ users.length === 1 ? "" : "s" }} total
-                </p>
+            <div v-reveal class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                    <font-awesome-icon icon="fa-solid fa-users" />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <h1 class="text-2xl font-extrabold text-white tracking-tight">Users &amp; Customers</h1>
+                    <p class="text-sm text-slate-400">
+                        Manage customer profiles, delivery addresses, and account access.
+                    </p>
+                </div>
             </div>
 
             <!-- Stat cards -->
-            <div class="grid grid-cols-3 gap-3.5">
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Total users</span>
-                    <div class="text-2xl font-bold text-white mt-1.5">{{ users.length }}</div>
+            <div v-reveal="80" class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div v-reveal="0" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Total users</span>
+                        <span class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <font-awesome-icon icon="fa-solid fa-users" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-white mt-3">{{ users.length }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Active</span>
-                    <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ activeCount }}</div>
+                <div v-reveal="70" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Active</span>
+                        <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <font-awesome-icon icon="fa-solid fa-circle-check" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-emerald-300 mt-3">{{ activeCount }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Inactive</span>
-                    <div class="text-2xl font-bold text-rose-300 mt-1.5">{{ inactiveCount }}</div>
+                <div v-reveal="140" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-rose-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-rose-500/5 rounded-full blur-xl group-hover:bg-rose-400/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Inactive</span>
+                        <span class="p-1.5 rounded-lg bg-slate-800/80 text-rose-400/70 border border-white/5">
+                            <font-awesome-icon icon="fa-solid fa-xmark-circle" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-rose-400 mt-3">{{ inactiveCount }}</div>
+                </div>
+                <div v-reveal="210" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">New this week</span>
+                        <span class="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            <font-awesome-icon icon="fa-solid fa-user-plus" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-cyan-300 mt-3">{{ newThisWeekCount }}</div>
                 </div>
             </div>
 
-            <!-- Search -->
-            <div class="relative w-full lg:w-72">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
-                    <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
-                </span>
-                <input
-                    id="users-search"
-                    v-model="searchQuery"
-                    type="text"
-                    name="search"
-                    placeholder="Search name, email..."
-                    aria-label="Search users"
-                    class="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-            </div>
+            <!-- Filter toolbar -->
+            <div v-reveal="140" class="glass-panel rounded-2xl p-4 space-y-3">
+                <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                    <div class="relative w-full lg:w-96">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                            <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
+                        </span>
+                        <input
+                            id="users-search"
+                            v-model="searchQuery"
+                            type="text"
+                            name="search"
+                            placeholder="Search by name, email, address..."
+                            aria-label="Search users"
+                            class="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-950/60 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
 
-            <!-- Date range + per-page -->
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="flex items-center gap-1.5">
-                    <label for="users-from" class="text-xs text-slate-500">From</label>
-                    <input
-                        id="users-from"
-                        v-model="dateFrom"
-                        type="date"
-                        name="dateFrom"
-                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <div class="flex items-center gap-1.5 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="text-slate-500 font-medium">From</span>
+                            <input id="users-from" v-model="dateFrom" type="date" name="dateFrom" class="bg-transparent border-none p-0 text-xs text-slate-200 focus:ring-0" />
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="text-slate-500 font-medium">To</span>
+                            <input id="users-to" v-model="dateTo" type="date" name="dateTo" class="bg-transparent border-none p-0 text-xs text-slate-200 focus:ring-0" />
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="text-slate-500">Show</span>
+                            <select id="users-per-page" v-model.number="perPage" name="perPage" class="bg-transparent border-none text-xs text-indigo-400 font-bold focus:ring-0 p-0 pr-1 cursor-pointer">
+                                <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
+                            </select>
+                        </div>
+                        <button
+                            v-if="hasActiveFilters"
+                            type="button"
+                            @click="clearFilters"
+                            class="flex items-center gap-1.5 text-xs font-medium text-rose-300 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl px-2.5 py-2 transition-colors"
+                        >
+                            <font-awesome-icon icon="fa-solid fa-xmark" />
+                            Clear
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <label for="users-to" class="text-xs text-slate-500">To</label>
-                    <input
-                        id="users-to"
-                        v-model="dateTo"
-                        type="date"
-                        name="dateTo"
-                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                </div>
 
-                <button
-                    v-if="hasActiveFilters"
-                    type="button"
-                    @click="clearFilters"
-                    class="flex items-center gap-1.5 text-xs font-medium text-rose-300 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg px-2.5 py-1.5 transition-colors"
-                >
-                    <font-awesome-icon icon="fa-solid fa-xmark" />
-                    Clear filters
-                </button>
-
-                <div class="flex items-center gap-1.5 ml-auto">
-                    <label for="users-per-page" class="text-xs text-slate-500">Show</label>
-                    <select
-                        id="users-per-page"
-                        v-model.number="perPage"
-                        name="perPage"
-                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                <div class="flex items-center gap-1 bg-slate-950/60 border border-white/5 p-1 rounded-xl w-fit">
+                    <button
+                        type="button"
+                        @click="statusFilter = 'all'"
+                        class="px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+                        :class="statusFilter === 'all' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
                     >
-                        <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
-                    </select>
-                    <span class="text-xs text-slate-500">per page</span>
+                        All ({{ users.length }})
+                    </button>
+                    <button
+                        type="button"
+                        @click="statusFilter = 'active'"
+                        class="px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                        :class="statusFilter === 'active' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        Active ({{ activeCount }})
+                    </button>
+                    <button
+                        type="button"
+                        @click="statusFilter = 'inactive'"
+                        class="px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                        :class="statusFilter === 'inactive' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                        Inactive ({{ inactiveCount }})
+                    </button>
                 </div>
             </div>
 
             <!-- Table -->
-            <div class="glass-panel rounded-2xl overflow-hidden">
+            <div v-reveal="200" class="glass-panel rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -284,17 +404,42 @@ function submitEdit() {
                             <tr
                                 v-for="row in paginatedUsers"
                                 :key="row.id"
-                                class="hover:bg-slate-800/30 transition-colors"
+                                class="hover:bg-slate-800/30 transition-colors group"
                             >
-                                <td class="px-4 py-3 font-semibold text-white">
-                                    {{ row.user_info.first_name }} {{ row.user_info.middle_name }} {{ row.user_info.last_name }}
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-9 h-9 rounded-xl bg-gradient-to-tr border flex items-center justify-center font-bold text-[11px] shrink-0"
+                                            :class="avatarClass(row.email)"
+                                        >
+                                            {{ userInitials(row.user_info) }}
+                                        </div>
+                                        <div>
+                                            <div
+                                                class="font-semibold group-hover:text-indigo-300 transition-colors"
+                                                :class="row.user_info ? 'text-white' : 'text-slate-500 italic'"
+                                            >
+                                                {{ userFullName(row.user_info) }}
+                                            </div>
+                                            <span class="text-[10px] text-slate-500 font-mono">UID-{{ String(row.id).padStart(4, "0") }}</span>
+                                        </div>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3 text-slate-300">{{ formatDate(row.user_info.birth_date) }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ row.user_info.phone }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ row.user_info.address }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ row.user_info?.birth_date ? formatDate(row.user_info.birth_date) : "—" }}</td>
+                                <td class="px-4 py-3 text-slate-300 font-mono">{{ row.user_info?.phone ?? "—" }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-1.5 text-slate-300">
+                                        <font-awesome-icon icon="fa-solid fa-location-dot" class="text-indigo-400 text-xs shrink-0" />
+                                        <span>{{ row.user_info?.address ?? "—" }}</span>
+                                    </div>
+                                </td>
                                 <td class="px-4 py-3 text-slate-300">{{ row.email }}</td>
                                 <td class="px-4 py-3">
-                                    <span class="inline-block rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="userStatus[row.status].class">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="userStatus[row.status].class">
+                                        <span
+                                            class="w-1.5 h-1.5 rounded-full"
+                                            :class="row.status === 'active' ? 'bg-emerald-400' : 'bg-rose-400'"
+                                        ></span>
                                         {{ userStatus[row.status].label }}
                                     </span>
                                 </td>
@@ -344,17 +489,52 @@ function submitEdit() {
                     </button>
                 </div>
             </div>
+
+            <!-- Recent customer activity -->
+            <div v-reveal="260" class="glass-panel rounded-2xl overflow-hidden">
+                <div class="flex items-center justify-between border-b border-white/5 px-5 py-4 bg-black/10">
+                    <h3 class="text-sm font-bold text-white">Recent Customer Activity</h3>
+                    <span class="text-[11px] text-slate-500">Latest orders placed</span>
+                </div>
+                <div class="p-3 space-y-2">
+                    <p v-if="recentOrders.length === 0" class="text-sm text-slate-500 text-center py-6">No orders placed yet.</p>
+                    <div
+                        v-for="order in recentOrders"
+                        :key="order.id"
+                        class="p-3 rounded-xl bg-slate-950/50 border border-white/5 flex items-center justify-between gap-3 hover:border-indigo-500/20 transition-colors"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                                <font-awesome-icon icon="fa-solid fa-box" class="text-xs" />
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono text-xs font-bold text-indigo-300">{{ order.order_number }}</span>
+                                    <span class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium border" :class="orderStatusBadge[order.status].class">
+                                        {{ orderStatusBadge[order.status].label }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5 truncate">{{ order.customer_name }} • {{ order.quantity }}x {{ order.team_name }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="text-xs font-bold text-white font-mono">{{ formatCurrency(order.amount) }}</span>
+                            <p class="text-[10px] text-slate-500">{{ timeAgo(order.created_at) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Edit Modal -->
         <Modal :show="modal.type.value === 'Edit'" @close="closeModal()" :maxWidth="'md'">
-            <form @submit.prevent="submitEdit" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-edit" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
-
+            <ModalHeader
+                icon="fa-solid fa-edit"
+                :title="modal.title.value"
+                subtitle="Enable or disable this customer's account access"
+                @close="closeModal()"
+            />
+            <form @submit.prevent="submitEdit" class="px-5 py-5 text-slate-200">
                 <div class="flex flex-col gap-4">
                     <div>
                         <InputLabel for="status" value="Status" class="!text-slate-300" />
@@ -363,8 +543,7 @@ function submitEdit() {
                     </div>
                 </div>
 
-                <hr class="mt-4 border-white/10" />
-                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton type="submit" class="flex items-center justify-center gap-1" :disabled="editForm.processing">

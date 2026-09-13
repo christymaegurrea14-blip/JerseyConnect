@@ -57,4 +57,21 @@ export interface MessageThread {
     // True once the order is completed — history stays visible, but the
     // thread becomes read-only.
     closed: boolean;
+
+    // Real order-spec data for the context panel.
+    unit_price: number;
+    quantity: number | null;
+    primary_color: string;
+    secondary_color: string;
+    accent_color: string;
+    font_style: string | null;
+    players: ThreadPlayer[];
+}
+
+export interface ThreadPlayer {
+    id: number;
+    name: string;
+    number: string | null;
+    position: string | null;
+    size: string | null;
 }

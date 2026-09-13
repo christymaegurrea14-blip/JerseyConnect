@@ -13,27 +13,52 @@ use Inertia\Response;
 class DesignRequestController extends Controller
 {
     /**
-     * The customer's own requests only — never another user's.
+     * "My Designs" was merged into the unified "My Orders" list — keep the
+     * old URL working for anyone with it bookmarked.
      */
-    public function index(): Response
+    public function index()
     {
-        $data = DesignRequest::query()
-            ->where('user_id', Auth::id())
-            ->with('template:id,image')
-            ->latest()
-            ->get()
-            ->map(function (DesignRequest $designRequest) {
-                $array = $designRequest->toArray();
-                $array['original_template_image'] = $designRequest->template?->image_url;
-                unset($array['template']);
- 
-                return $array;
-            });
+        return redirect()->route('client.orders.index');
+    }
 
-        return Inertia::render('Client/Design', [
-            'data' => $data,
+    public function show(DesignRequest $designRequest): Response
+    {
+        $this->authorizeOwner($designRequest);
+        $designRequest->load(['template:id,image', 'players']);
+
+        return Inertia::render('Client/DesignDetail', [
+            'request' => $this->transform($designRequest),
+        ]);
+    }
+
+    public function roster(DesignRequest $designRequest): Response
+    {
+        $this->authorizeOwner($designRequest);
+        $designRequest->load('players');
+
+        return Inertia::render('Client/DesignRoster', [
+            'request' => $this->transform($designRequest),
+        ]);
+    }
+
+    public function payShow(DesignRequest $designRequest): Response
+    {
+        $this->authorizeOwner($designRequest);
+        $designRequest->load('players');
+
+        return Inertia::render('Client/DesignPayment', [
+            'request' => $this->transform($designRequest),
             'gcash' => GcashSetting::current(),
         ]);
+    }
+
+    private function transform(DesignRequest $designRequest): array
+    {
+        $array = $designRequest->toArray();
+        $array['original_template_image'] = $designRequest->template?->image_url;
+        unset($array['template']);
+
+        return $array;
     }
 
     public function pay(Request $request, DesignRequest $designRequest)
@@ -60,8 +85,26 @@ class DesignRequestController extends Controller
         ]);
 
         return redirect()
-            ->back()
+            ->route('client.orders.index')
             ->with('success', 'Payment proof submitted — we\'ll review it shortly.');
+    }
+
+    /**
+     * "Team Rosters" hub — every design request the client has, regardless
+     * of lifecycle stage, since a roster can be managed at any point.
+     */
+    public function rosters(): Response
+    {
+        $data = DesignRequest::query()
+            ->where('user_id', Auth::id())
+            ->with('players')
+            ->latest()
+            ->get()
+            ->map(fn(DesignRequest $designRequest) => $this->transform($designRequest));
+
+        return Inertia::render('Client/Rosters', [
+            'data' => $data,
+        ]);
     }
 
     public function cancel(DesignRequest $designRequest)

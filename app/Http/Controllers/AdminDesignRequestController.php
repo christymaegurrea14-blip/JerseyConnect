@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Address;
 use App\Models\DesignRequest;
 use App\Models\Order;
+use App\Notifications\DesignRequestStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +21,7 @@ class AdminDesignRequestController extends Controller
     public function index(): Response
     {
         $data = DesignRequest::query()
-            ->with('template:id,image')
+            ->with(['template:id,image', 'players'])
             ->latest()
             ->get()
             ->map(function (DesignRequest $designRequest) {
@@ -64,7 +65,13 @@ class AdminDesignRequestController extends Controller
             $data['template_image'] = $request->file('image')->store('design-requests/designs', 'public');
         }
 
+        $statusChanged = $designRequest->status !== $data['status'];
+
         $designRequest->update($data);
+
+        if ($statusChanged) {
+            $designRequest->user->notify(new DesignRequestStatusUpdated($designRequest));
+        }
 
         return redirect()
             ->back()
@@ -108,6 +115,8 @@ class AdminDesignRequestController extends Controller
             Address::create(['order_id' => $order->id]);
         });
 
+        $designRequest->refresh()->user->notify(new DesignRequestStatusUpdated($designRequest));
+
         return redirect()->back()->with('success', 'Payment approved — order created.');
     }
 
@@ -118,6 +127,8 @@ class AdminDesignRequestController extends Controller
         }
 
         $designRequest->update(['status' => 'waiting_for_down_payment']);
+
+        $designRequest->user->notify(new DesignRequestStatusUpdated($designRequest));
 
         return redirect()->back()->with('success', 'Payment rejected — customer has been asked to resubmit.');
     }

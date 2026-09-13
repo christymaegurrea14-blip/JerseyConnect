@@ -138,6 +138,24 @@ function openAttachment(url: string): void {
     window.open(url, "_blank");
 }
 
+// Canned replies — just prefill the composer, nothing fake about the send itself.
+const quickReplies = [
+    { label: "GCash payment confirmed", text: "Your GCash payment has been verified. We're moving your order into production now." },
+    { label: "Production started", text: "Good news — production has started on your jersey order." },
+    { label: "Confirm proof/specs", text: "Could you confirm the design proof and specs (colors, sizes, names/numbers) before we proceed?" },
+];
+
+function useQuickReply(text: string): void {
+    replyText.value = text;
+}
+
+/** True when the active thread's design request looks like it's waiting on a GCash down payment. */
+const showVerifyGcash = computed<boolean>(() => {
+    const t = liveActiveThread.value;
+    if (!t || t.stage !== "design") return false;
+    return /down payment|gcash/i.test(t.status_label ?? "");
+});
+
 function sendReply(thread: MessageThread): void {
     if ((!replyText.value.trim() && !replyImage.value) || thread.closed)
         return;
@@ -179,41 +197,44 @@ onMounted(() => {
     <Head title="Messages" />
 
     <AdminLayout>
-        <div>
-            <div class="flex h-[calc(100dvh-140px)] md:h-[80dvh-40px] rounded-2xl glass-panel overflow-hidden">
+        <div class="space-y-1">
+            <div v-reveal class="flex items-center gap-3 mb-5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+                    <font-awesome-icon icon="fa-solid fa-comments" class="text-sm" />
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-extrabold text-white tracking-tight">Messages</h1>
+                        <span v-if="unreadCount" class="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                            {{ unreadCount }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400">Conversations are opened from a Design Request or Order.</p>
+                </div>
+            </div>
+
+            <div v-reveal="80" class="flex gap-5 h-[calc(100dvh-220px)] md:h-[75dvh]">
                 <aside
-                    class="w-full md:w-80 flex-shrink-0 border-r border-white/5 flex-col"
+                    class="w-full md:w-[390px] flex-shrink-0 glass-panel rounded-2xl overflow-hidden flex-col"
                     :class="activeThread ? 'hidden md:flex' : 'flex'"
                 >
-                    <!-- Header -->
-                    <div class="p-4 border-b border-white/5">
-                        <div class="flex items-center gap-2">
-                            <font-awesome-icon icon="fa-solid fa-comments" class="text-indigo-400" />
-                            <span class="font-semibold text-white text-sm">Messages</span>
-                            <span v-if="unreadCount" class="ml-auto rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                                {{ unreadCount }}
-                            </span>
+                    <!-- Filter tabs -->
+                    <div class="p-3 border-b border-white/5 shrink-0">
+                        <div class="flex items-center bg-slate-950/60 p-1 rounded-lg border border-white/5">
+                            <button
+                                v-for="tab in tabs"
+                                :key="tab.key"
+                                class="flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all truncate"
+                                :class="
+                                    activeTab === tab.key
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-200'
+                                "
+                                @click="activeTab = tab.key"
+                            >
+                                {{ tab.label }}
+                            </button>
                         </div>
-                        <p class="mt-1 text-[11px] text-slate-500">
-                            Conversations are opened from a Design Request or Order.
-                        </p>
-                    </div>
-
-                    <!-- Tabs -->
-                    <div class="flex border-b border-white/5">
-                        <button
-                            v-for="tab in tabs"
-                            :key="tab.key"
-                            class="flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors"
-                            :class="
-                                activeTab === tab.key
-                                    ? 'border-indigo-500 text-white'
-                                    : 'border-transparent text-slate-500 hover:text-slate-300'
-                            "
-                            @click="activeTab = tab.key"
-                        >
-                            {{ tab.label }}
-                        </button>
                     </div>
 
                     <!-- Thread list -->
@@ -231,7 +252,7 @@ onMounted(() => {
                             <img
                                 :src="thread.template_image"
                                 :alt="thread.template_name"
-                                class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-slate-900 border border-white/10 p-1"
+                                class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-white border border-white/10 p-1"
                             />
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-1.5">
@@ -265,7 +286,7 @@ onMounted(() => {
                     </div>
                 </aside>
 
-                <main class="flex-1 flex-col overflow-hidden" :class="activeThread ? 'flex' : 'hidden md:flex'">
+                <main class="flex-1 flex-col overflow-hidden glass-panel rounded-2xl" :class="activeThread ? 'flex' : 'hidden md:flex'">
                     <!-- Empty state -->
                     <div v-if="!liveActiveThread" class="flex flex-1 flex-col items-center justify-center text-slate-500 gap-3">
                         <font-awesome-icon icon="fa-solid fa-inbox" class="text-5xl text-slate-700" />
@@ -290,7 +311,7 @@ onMounted(() => {
                                 <img
                                     :src="liveActiveThread.template_image"
                                     :alt="liveActiveThread.template_name"
-                                    class="h-10 w-10 flex-shrink-0 rounded-lg object-contain bg-slate-900 border border-white/10 p-1"
+                                    class="h-10 w-10 flex-shrink-0 rounded-lg object-contain bg-white border border-white/10 p-1"
                                 />
                                 <div class="min-w-0">
                                     <h3 class="text-sm font-semibold text-white truncate">
@@ -326,6 +347,14 @@ onMounted(() => {
                                 >
                                     <font-awesome-icon icon="fa-solid fa-tshirt" />
                                     View design request
+                                </Link>
+                                <Link
+                                    v-if="showVerifyGcash"
+                                    :href="route('admin.design.index')"
+                                    class="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-300 transition-colors"
+                                >
+                                    <font-awesome-icon icon="fa-solid fa-circle-check" />
+                                    Verify GCash
                                 </Link>
                             </div>
                         </div>
@@ -364,6 +393,20 @@ onMounted(() => {
                                     <p class="mt-1 text-right text-[10px] opacity-70">{{ msg.time }}</p>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Quick replies -->
+                        <div v-if="!liveActiveThread.closed" class="px-4 sm:px-6 py-2 border-t border-white/5 flex items-center gap-2 overflow-x-auto shrink-0">
+                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">Quick reply</span>
+                            <button
+                                v-for="qr in quickReplies"
+                                :key="qr.label"
+                                type="button"
+                                class="px-2.5 py-1 text-xs bg-slate-800/70 hover:bg-slate-700 text-slate-300 rounded-full border border-white/10 transition-colors shrink-0"
+                                @click="useQuickReply(qr.text)"
+                            >
+                                {{ qr.label }}
+                            </button>
                         </div>
 
                         <!-- Reply box -->

@@ -6,6 +6,7 @@ import { computed } from "vue";
 interface StatBlock {
     value: number;
     change: number;
+    trend?: number[];
 }
 
 interface Stats {
@@ -20,7 +21,11 @@ interface Stats {
 interface BestSellingTemplate {
     name: string;
     sold: number;
+    orderCount: number;
+    unitPrice: number;
     image: string | null;
+    sport: string | null;
+    badge: string | null;
 }
 
 interface RecentOrder {
@@ -72,6 +77,25 @@ const maxSold = computed(() =>
     Math.max(...props.bestSellingTemplates.map((t) => t.sold), 1),
 );
 
+// Cycled per-card accent so the best-selling row doesn't read as one flat
+// block of indigo, mirroring the varied palette in the reference.
+const cardAccents = [
+    { text: "text-cyan-400", bar: "bg-gradient-to-r from-cyan-500 to-blue-500" },
+    { text: "text-emerald-400", bar: "bg-gradient-to-r from-emerald-500 to-teal-500" },
+    { text: "text-amber-400", bar: "bg-gradient-to-r from-amber-500 to-orange-500" },
+];
+
+function badgeAccent(badge: string) {
+    // Solid fills — this pill now sits directly over the white jersey
+    // photo, so the old translucent-on-dark treatment lost all contrast.
+    const map: Record<string, string> = {
+        Hot: "bg-amber-500 text-white border-amber-600",
+        New: "bg-indigo-600 text-white border-indigo-700",
+        Bestseller: "bg-emerald-600 text-white border-emerald-700",
+    };
+    return { pill: map[badge] ?? "bg-slate-600 text-white border-slate-700" };
+}
+
 const user = computed(() => usePage().props.auth?.user as any);
 const firstName = computed(
     () => user.value?.user_info?.first_name ?? user.value?.email ?? "there",
@@ -115,6 +139,42 @@ function formatCurrency(value: number) {
     }).format(value);
 }
 
+// Real 7-day revenue trend, plotted as an SVG sparkline (viewBox 100x32).
+const SPARK_W = 100;
+const SPARK_H = 32;
+const SPARK_PAD = 4;
+
+const sparklinePoints = computed(() => {
+    const trend = props.stats.revenue.trend ?? [];
+    if (trend.length < 2) return [];
+
+    const max = Math.max(...trend, 1);
+    const min = Math.min(...trend, 0);
+    const range = max - min || 1;
+    const step = SPARK_W / (trend.length - 1);
+
+    return trend.map((v, i) => {
+        const x = i * step;
+        const y = SPARK_H - SPARK_PAD - ((v - min) / range) * (SPARK_H - SPARK_PAD * 2);
+        return { x, y };
+    });
+});
+
+const sparklineLinePath = computed(() => {
+    const pts = sparklinePoints.value;
+    if (pts.length === 0) return "";
+    return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+});
+
+const sparklineAreaPath = computed(() => {
+    const pts = sparklinePoints.value;
+    if (pts.length === 0) return "";
+    const line = sparklineLinePath.value;
+    const last = pts[pts.length - 1];
+    const first = pts[0];
+    return `${line} L${last.x.toFixed(1)},${SPARK_H} L${first.x.toFixed(1)},${SPARK_H} Z`;
+});
+
 function statusChip(status: string) {
     const map: Record<string, string> = {
         Processing: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25",
@@ -143,7 +203,7 @@ function statusChip(status: string) {
     <AdminLayout>
         <div class="space-y-8">
             <!-- Hero -->
-            <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <section v-reveal class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 <div class="lg:col-span-8 flex flex-col justify-between py-2">
                     <div class="space-y-2.5">
                         <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-400/90 flex items-center gap-2">
@@ -189,11 +249,33 @@ function statusChip(status: string) {
                             <span>{{ stats.revenue.change >= 0 ? "+" : "" }}{{ stats.revenue.change }}% <span class="text-slate-400 font-normal">vs last week</span></span>
                         </div>
                     </div>
+
+                    <!-- Real 7-day revenue sparkline -->
+                    <div v-if="sparklinePoints.length > 1" class="relative z-10 mt-4 -mx-1">
+                        <svg viewBox="0 0 100 32" preserveAspectRatio="none" class="w-full h-12">
+                            <defs>
+                                <linearGradient id="revenueSparkFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.35" />
+                                    <stop offset="100%" stop-color="#2563eb" stop-opacity="0" />
+                                </linearGradient>
+                                <linearGradient id="revenueSparkLine" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stop-color="#06b6d4" />
+                                    <stop offset="100%" stop-color="#6366f1" />
+                                </linearGradient>
+                            </defs>
+                            <path :d="sparklineAreaPath" fill="url(#revenueSparkFill)" stroke="none" />
+                            <path :d="sparklineLinePath" fill="none" stroke="url(#revenueSparkLine)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="flex justify-between text-[9px] text-slate-500 font-medium mt-1 px-0.5">
+                            <span>6 days ago</span>
+                            <span>Today</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <!-- Quick stats -->
-            <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+            <section v-reveal="80" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
                 <div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
                     <span class="text-xs font-medium text-slate-400 truncate">Total orders</span>
                     <div class="text-2xl font-bold text-white mt-1.5">{{ stats.totalOrders.value }}</div>
@@ -220,7 +302,7 @@ function statusChip(status: string) {
             </section>
 
             <!-- Needs attention -->
-            <section class="space-y-4" v-if="needsAttention.length">
+            <section class="space-y-4" v-if="needsAttention.length" v-reveal="140">
                 <div class="flex items-center gap-2 px-1">
                     <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Needs attention</h2>
                     <span class="text-xs px-2 py-0.5 rounded-md font-semibold bg-slate-800 text-slate-400 border border-white/5">
@@ -230,8 +312,9 @@ function statusChip(status: string) {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div
-                        v-for="n in needsAttention"
+                        v-for="(n, i) in needsAttention"
                         :key="n.label"
+                        v-reveal="(i % 3) * 70"
                         class="glass-panel rounded-xl p-4 flex items-center gap-3.5"
                     >
                         <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
@@ -246,7 +329,7 @@ function statusChip(status: string) {
             </section>
 
             <!-- Best-selling templates -->
-            <section class="space-y-5 pt-2">
+            <section class="space-y-5 pt-2" v-reveal="200">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="space-y-1">
                         <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">Best-Selling Templates</h2>
@@ -256,33 +339,58 @@ function statusChip(status: string) {
 
                 <div v-if="bestSellingTemplates.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div
-                        v-for="t in bestSellingTemplates"
+                        v-for="(t, i) in bestSellingTemplates"
                         :key="t.name"
-                        class="glass-panel rounded-2xl p-4 flex flex-col gap-3.5"
+                        v-reveal="(i % 3) * 70"
+                        class="group glass-panel rounded-2xl p-4 flex flex-col gap-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-950/40"
                     >
-                        <div class="w-full h-32 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-center overflow-hidden">
+                        <div class="relative w-full h-40 rounded-xl bg-white border border-white/5 flex items-center justify-center overflow-hidden">
+                            <span
+                                v-if="t.badge"
+                                class="absolute top-2.5 left-2.5 z-10 text-[10px] font-bold px-2.5 py-1 rounded-full border backdrop-blur-md"
+                                :class="badgeAccent(t.badge).pill"
+                            >
+                                {{ t.badge }}
+                            </span>
+                            <span class="absolute bottom-2.5 right-2.5 z-10 text-xs font-extrabold px-2.5 py-1 rounded-lg bg-slate-950/90 text-white border border-white/10 shadow-lg">
+                                {{ formatCurrency(t.unitPrice) }}
+                            </span>
                             <img
                                 v-if="t.image"
                                 :src="t.image"
                                 :alt="t.name"
-                                class="h-full w-full object-contain p-2"
+                                class="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105"
                             />
                             <font-awesome-icon v-else icon="fa-solid fa-tshirt" class="text-3xl text-slate-600" />
                         </div>
                         <div class="space-y-2">
-                            <h3 class="text-sm font-bold text-white tracking-tight truncate">{{ t.name }}</h3>
-                            <div class="space-y-1.5">
+                            <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide">
+                                <span :class="cardAccents[i % cardAccents.length].text">{{ t.sport ?? "Jersey" }}</span>
+                                <span class="text-slate-500 font-medium normal-case">{{ t.orderCount }} order{{ t.orderCount === 1 ? "" : "s" }} placed</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-white tracking-tight truncate group-hover:text-indigo-200 transition-colors">{{ t.name }}</h3>
+                            <div class="space-y-1.5 pt-1">
                                 <div class="flex justify-between items-center text-[11px]">
                                     <span class="text-slate-400">Units sold</span>
                                     <span class="text-indigo-300 font-semibold font-mono">{{ t.sold }}</span>
                                 </div>
                                 <div class="w-full h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
                                     <div
-                                        class="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"
+                                        class="h-full rounded-full transition-all duration-500"
+                                        :class="cardAccents[i % cardAccents.length].bar"
                                         :style="{ width: (t.sold / maxSold) * 100 + '%' }"
                                     ></div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="pt-3 mt-1 border-t border-white/5 flex items-center justify-between">
+                            <Link
+                                :href="route('admin.jersey.index')"
+                                class="text-xs font-semibold transition-colors"
+                                :class="cardAccents[i % cardAccents.length].text"
+                            >
+                                View in catalog →
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -290,7 +398,7 @@ function statusChip(status: string) {
             </section>
 
             <!-- Recent orders -->
-            <section class="space-y-4 pt-2">
+            <section class="space-y-4 pt-2" v-reveal="260">
                 <div class="flex items-center justify-between px-1">
                     <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Recent orders</h2>
                     <Link :href="route('admin.orders.index')" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors">
@@ -325,7 +433,7 @@ function statusChip(status: string) {
             </section>
 
             <!-- Design Requests / GCash / Messages -->
-            <section class="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-2">
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-2" v-reveal="320">
                 <div class="glass-panel rounded-2xl p-5">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-bold text-slate-200">Design Requests</h3>

@@ -31,6 +31,28 @@ export default {
                     border: "rgba(255, 255, 255, 0.07)",
                     borderHover: "rgba(99, 102, 241, 0.35)",
                 },
+                // Landing page redesign — dark athletic palette
+                obsidian: {
+                    950: "#040711",
+                    900: "#070a12",
+                    850: "#0b111e",
+                    800: "#0e172a",
+                    700: "#1e293b",
+                    600: "#334155",
+                },
+                electric: {
+                    400: "#38bdf8",
+                    500: "#0ea5e9",
+                    600: "#2563eb",
+                    700: "#1d4ed8",
+                },
+                neonCyan: "#06b6d4",
+                neonAmber: "#f59e0b",
+                neonGreen: "#10b981",
+            },
+            boxShadow: {
+                glowCyan: "0 0 35px -5px rgba(6, 182, 212, 0.35)",
+                glowBlue: "0 0 45px -5px rgba(37, 99, 235, 0.4)",
             },
             fontFamily: {
                 // was "Figtree" — the page actually loads & uses Inter via Google Fonts

@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\DesignRequest;
+use App\Models\Jersey;
+use App\Models\Order;
 use App\Models\User;
+use App\Notifications\PasswordChanged;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
@@ -20,7 +25,41 @@ class ProfileController extends Controller
 
     public function index(Request $request): Response
     {
-        return Inertia::render('Client/Profile');
+        return Inertia::render('Client/Profile', [
+            'stats' => $this->clientStats($request->user()),
+        ]);
+    }
+
+    /**
+     * Display the admin's own profile.
+     */
+    public function adminIndex(Request $request): Response
+    {
+        return Inertia::render('Admin/Profile', [
+            'stats' => [
+                'jerseys_count' => Jersey::count(),
+                'orders_count' => Order::count(),
+                'clients_count' => User::where('role', 'client')->count(),
+                'pending_reviews' => DesignRequest::where('status', 'pending_review')->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * Real, per-client account stats for the profile hero — no fabricated
+     * numbers, just straight counts scoped to this user.
+     */
+    private function clientStats(User $user): array
+    {
+        return [
+            'design_requests_count' => DesignRequest::where('user_id', $user->id)->count(),
+            'orders_count' => Order::where('user_id', $user->id)->count(),
+            'total_sets' => (int) Order::where('user_id', $user->id)->sum('quantity'),
+            'teams_count' => DesignRequest::where('user_id', $user->id)
+                ->pluck('team_name')
+                ->unique()
+                ->count(),
+        ];
     }
 
     /**
@@ -65,6 +104,28 @@ class ProfileController extends Controller
     }
 
     /**
+     * Update the user's profile picture.
+     */
+    public function updateAvatar(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'max:4096'], // 4MB
+        ]);
+
+        $userInfo = $request->user()->userInfo;
+
+        if ($userInfo->avatar) {
+            Storage::disk('public')->delete($userInfo->avatar);
+        }
+
+        $userInfo->update([
+            'avatar' => $request->file('avatar')->store('avatars', 'public'),
+        ]);
+
+        return back();
+    }
+
+    /**
      * Update the user's credentials.
      */
     public function updateCredentials(Request $request): RedirectResponse
@@ -82,6 +143,8 @@ class ProfileController extends Controller
             $request->user()->update([
                 'password' => Hash::make($request->password),
             ]);
+
+            $request->user()->notify(new PasswordChanged());
         }
 
         if ($request->user()->role === 'admin') {

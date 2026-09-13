@@ -6,60 +6,70 @@ const props = defineProps<{ template: JerseyTemplate }>();
 const emit = defineEmits<{ (e: "select", id: number): void }>();
 
 const badgeStyles: Record<string, string> = {
-    New: "bg-green-500 text-white",
-    Bestseller: "bg-yellow-500 text-white",
-    Hot: "bg-red-500 text-white",
+    New: "bg-cobalt text-white",
+    Bestseller: "bg-amber-500 text-white",
+    Hot: "bg-gradient-to-r from-accent to-orange-500 text-white",
 };
+
+function formatPrice(value: number) {
+    return `₱${value.toLocaleString("en-PH")}`;
+}
 </script>
 
 <template>
     <article
-        class="group relative flex flex-col overflow-hidden rounded-lg border-2 border-dashed border-ink/15 bg-paper transition-all duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-lg"
+        class="group flex flex-col rounded-2xl bg-white border border-ink/10 hover:border-cobalt/40 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
     >
         <!-- Thumbnail -->
-        <div
-            class="relative flex h-44 items-center justify-center overflow-hidden bg-ink transition-colors duration-200 group-hover:bg-ink/5 py-2"
-        >
+        <div class="relative w-full aspect-[4/5] bg-gradient-to-b from-ink/[0.03] to-ink/[0.06] overflow-hidden p-3">
             <img
-                class="h-full w-full object-contain rounded"
+                class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                 :src="template.imagePath"
-                alt="t-shirt image"
+                :alt="template.name"
             />
             <span
                 v-if="template.badge"
                 :class="badgeStyles[template.badge]"
-                class="absolute left-2 top-2 rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
+                class="absolute top-3 left-3 z-10 px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm"
             >
                 {{ template.badge }}
             </span>
-
-            <span
-                class="absolute right-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-medium bg-paper text-ink/90 group-hover:bg-ink group-hover:text-paper transition-colors duration-200"
-            >
+            <span class="absolute top-3 right-3 z-10 px-2 py-0.5 rounded bg-white/90 backdrop-blur-sm text-ink text-[10px] font-bold shadow-xs">
                 {{ template.sport }}
             </span>
         </div>
 
         <!-- Body -->
-        <div class="flex flex-1 flex-col gap-1.5 p-3">
-            <div class="flex items-start gap-1.5">
-                <div class="flex flex-1 flex-col gap-1.5">
-                    <h3
-                        class="truncate text-xl tracking-wide text-ink/90 group-hover:text-ink/80"
-                    >
-                        {{ template.name }}
-                    </h3>
+        <div class="p-4 flex-1 flex flex-col justify-between gap-3">
+            <div class="space-y-1">
+                <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-cobalt/70">
+                    <font-awesome-icon icon="fa-solid fa-bolt" class="text-[9px]" />
+                    <span>Full-Dye Sublimation</span>
                 </div>
-                <span class="text-lg font-medium text-ink">
-                    ₱{{ template.price }}
-                </span>
+                <h3 class="text-base font-black text-ink group-hover:text-cobalt transition-colors truncate">
+                    {{ template.name }}
+                </h3>
+                <p v-if="template.description" class="text-xs text-ink/50 leading-snug line-clamp-2">
+                    {{ template.description }}
+                </p>
             </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-ink/10">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full ring-1 ring-white shadow-xs cursor-help" :title="template.primaryColor" :style="{ backgroundColor: template.primaryColor }"></span>
+                    <span class="w-3.5 h-3.5 rounded-full ring-1 ring-white shadow-xs cursor-help" :title="template.secondaryColor" :style="{ backgroundColor: template.secondaryColor }"></span>
+                    <span class="w-3.5 h-3.5 rounded-full ring-1 ring-ink/10 shadow-xs cursor-help" :title="template.accentColor" :style="{ backgroundColor: template.accentColor }"></span>
+                </div>
+                <span class="text-base font-black text-ink">{{ formatPrice(template.price) }}<span class="text-xs font-semibold text-ink/40"> /set</span></span>
+            </div>
+
             <button
                 type="button"
-                class="mt-2 w-full rounded bg-ink/90 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-ink"
+                class="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-cobalt hover:bg-cobalt-dark text-white text-xs font-bold transition-all shadow-xs"
                 @click="emit('select', template.id)"
             >
-                Select Template
+                <font-awesome-icon icon="fa-solid fa-edit" class="text-[13px]" />
+                Customize Template
             </button>
         </div>
     </article>

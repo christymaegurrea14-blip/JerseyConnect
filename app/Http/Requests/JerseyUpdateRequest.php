@@ -15,6 +15,7 @@ class JerseyUpdateRequest extends FormRequest
     {
         return [
             'name'             => ['required', 'string', 'max:255'],
+            'description'      => ['nullable', 'string', 'max:2000'],
             'price'            => ['required', 'numeric', 'min:0'],
             'badge'            => ['nullable', 'in:New,Bestseller,Hot'],
             'primary_color'    => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],

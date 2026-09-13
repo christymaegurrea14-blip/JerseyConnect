@@ -13,7 +13,12 @@ class ChatController extends Controller
 {
     public function index(Request $request)
     {
-        $threads = MessageThread::with(['designRequest.user.userInfo', 'designRequest.order', 'messages.user.userInfo'])
+        $threads = MessageThread::with([
+                'designRequest.user.userInfo',
+                'designRequest.order',
+                'designRequest.players',
+                'messages.user.userInfo',
+            ])
             ->whereHas('designRequest', fn($q) => $q->where('user_id', $request->user()->id))
             ->get();
 

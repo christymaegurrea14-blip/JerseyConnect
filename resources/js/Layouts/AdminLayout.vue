@@ -1,12 +1,31 @@
 <script setup>
 import { ref, computed } from "vue";
-import { Link, usePage, usePoll } from "@inertiajs/vue3";
+import { Link, usePage, usePoll, router } from "@inertiajs/vue3";
+import Modal from "@/Components/Modal.vue";
+import ModalHeader from "@/Components/ModalHeader.vue";
+import PrimaryButton from "@/Components/PrimaryButton.vue";
+import SecondaryButton from "@/Components/SecondaryButton.vue";
 
 const page = usePage();
 
-const unreadMessagesCount = computed(() => page.props.unreadMessagesCount ?? 0);
+const showLogoutConfirm = ref(false);
+const loggingOut = ref(false);
 
-usePoll(3000, { only: ["unreadMessagesCount"] });
+function confirmLogout() {
+    loggingOut.value = true;
+    router.post(route("logout"), {}, {
+        onFinish: () => {
+            loggingOut.value = false;
+            showLogoutConfirm.value = false;
+        },
+    });
+}
+
+const unreadMessagesCount = computed(() => page.props.unreadMessagesCount ?? 0);
+const pendingDesignRequestsCount = computed(() => page.props.pendingDesignRequestsCount ?? 0);
+const pendingGcashCount = computed(() => page.props.pendingGcashCount ?? 0);
+
+usePoll(3000, { only: ["unreadMessagesCount", "pendingDesignRequestsCount", "pendingGcashCount"] });
 
 const isShowSideBar = ref(true);
 const isCollapsed = ref(false);
@@ -33,10 +52,19 @@ const sidebarMenus = [
         icon: "fa-solid fa-tachograph-digital",
     },
     {
+        menuName: "Orders",
+        route: route("admin.orders.index"),
+        icon: "fa-solid fa-box",
+    },
+    {
+        menuName: "Messages",
+        route: route("admin.messages.index"),
+        icon: "fa-solid fa-envelope",
+    },
+    {
         menuName: "Jersey Templates",
         route: route("admin.jersey.index"),
         icon: "fa-solid fa-tshirt",
-        hasBadge: true,
     },
     {
         menuName: "Designs",
@@ -46,26 +74,14 @@ const sidebarMenus = [
         badgeColor: "fuchsia",
     },
     {
-        menuName: "Order Management",
-        icon: "fa-solid fa-shopping-basket",
-        children: [
-            { menuName: "Orders", route: route("admin.orders.index") },
-            {
-                menuName: "Couriers",
-                route: route("admin.couriers.index"),
-            },
-        ],
+        menuName: "Couriers",
+        route: route("admin.couriers.index"),
+        icon: "fa-solid fa-truck-fast",
     },
     {
         menuName: "Gcash Details",
         route: route("admin.gcash.index"),
         icon: "fa-solid fa-wallet",
-        hasBadge: true,
-    },
-    {
-        menuName: "Messages",
-        route: route("admin.messages.index"),
-        icon: "fa-solid fa-envelope",
         hasBadge: true,
     },
     {
@@ -78,32 +94,11 @@ const sidebarMenus = [
 const byName = (...names) =>
     names.map((n) => sidebarMenus.find((m) => m.menuName === n)).filter(Boolean);
 
-const overviewMenus = byName("Dashboard", "Messages");
+const overviewMenus = byName("Dashboard", "Orders", "Messages");
 const catalogMenus = byName("Jersey Templates", "Designs");
-const orderManagementMenu = sidebarMenus.find((m) => m.children);
-const adminMenus = byName("Gcash Details", "Users");
+const adminMenus = byName("Couriers", "Gcash Details", "Users");
 
 const isActive = (href) => page.url.startsWith(new URL(href).pathname);
-
-const openSubmenus = ref(
-    Object.fromEntries(
-        sidebarMenus
-            .filter((menu) => menu.children)
-            .map((menu) => [
-                menu.menuName,
-                menu.children.some((child) => isActive(child.route)),
-            ]),
-    ),
-);
-
-const toggleSubmenu = (menuName) => {
-    if (isCollapsed.value) {
-        isCollapsed.value = false;
-        openSubmenus.value[menuName] = true;
-        return;
-    }
-    openSubmenus.value[menuName] = !openSubmenus.value[menuName];
-};
 
 const badgeClasses = (color) =>
     color === "fuchsia"
@@ -112,10 +107,16 @@ const badgeClasses = (color) =>
 
 const badgeDotClasses = (color) =>
     color === "fuchsia" ? "bg-fuchsia-400" : "bg-indigo-500";
+
+function menuBadgeCount(menuName) {
+    if (menuName === "Designs") return pendingDesignRequestsCount.value;
+    if (menuName === "Gcash Details") return pendingGcashCount.value;
+    return 0;
+}
 </script>
 
 <template>
-    <div class="flex h-screen bg-surface-base font-jakarta overflow-hidden">
+    <div class="admin-scrollbar flex h-screen bg-surface-base font-jakarta overflow-hidden">
         <!-- Mobile Overlay (only on small screens) -->
         <div
             v-if="isShowSideBar"
@@ -166,11 +167,7 @@ const badgeDotClasses = (color) =>
                         class="hidden lg:flex items-center justify-center h-8 rounded-lg border border-surface-border text-slate-400 hover:text-slate-200 hover:border-surface-borderHover transition-colors"
                         :class="isCollapsed ? 'w-10 mx-auto' : 'w-full gap-2 text-xs font-medium'"
                     >
-                        <font-awesome-icon
-                            icon="fa-solid fa-chevron-left"
-                            class="text-[11px] transition-transform"
-                            :class="isCollapsed && 'rotate-180'"
-                        />
+                        <font-awesome-icon icon="fa-solid fa-bars" class="text-[13px]" />
                         <span v-if="!isCollapsed">Collapse</span>
                     </button>
 
@@ -245,60 +242,17 @@ const badgeDotClasses = (color) =>
                                         <span :class="isCollapsed && 'lg:hidden'">{{ menu.menuName }}</span>
                                     </div>
                                     <span
-                                        v-if="menu.hasBadge"
+                                        v-if="menu.hasBadge && menuBadgeCount(menu.menuName) > 0"
                                         class="text-xs px-2 py-0.5 rounded-full font-semibold border"
                                         :class="[badgeClasses(menu.badgeColor), isCollapsed && 'lg:hidden']"
-                                    >1</span>
+                                    >{{ menuBadgeCount(menu.menuName) > 9 ? '9+' : menuBadgeCount(menu.menuName) }}</span>
                                     <span
-                                        v-if="menu.hasBadge && isCollapsed"
+                                        v-if="menu.hasBadge && menuBadgeCount(menu.menuName) > 0 && isCollapsed"
                                         class="hidden lg:block lg:absolute lg:top-1 lg:right-1 w-2 h-2 rounded-full"
                                         :class="badgeDotClasses(menu.badgeColor)"
                                     ></span>
                                 </Link>
                             </template>
-                        </div>
-
-                        <!-- Order Management (has children) -->
-                        <div class="space-y-1" v-if="orderManagementMenu">
-                            <button
-                                @click="toggleSubmenu(orderManagementMenu.menuName)"
-                                :title="isCollapsed ? orderManagementMenu.menuName : null"
-                                :class="[
-                                    'w-full flex items-center rounded-xl text-sm font-medium transition-colors',
-                                    isCollapsed ? 'lg:justify-center lg:h-11 lg:w-11 lg:mx-auto' : 'gap-3 px-3.5 py-2.5',
-                                    orderManagementMenu.children.some((child) => isActive(child.route))
-                                        ? 'bg-gradient-to-r from-indigo-950/70 to-slate-900/60 border border-indigo-500/20 text-indigo-200 font-semibold shadow-sm'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent',
-                                ]"
-                            >
-                                <font-awesome-icon :icon="orderManagementMenu.icon" />
-                                <span class="flex-1 text-left" :class="isCollapsed && 'lg:hidden'">{{ orderManagementMenu.menuName }}</span>
-                                <font-awesome-icon
-                                    icon="fa-solid fa-chevron-down"
-                                    class="text-xs text-slate-500 transition-transform duration-200"
-                                    :class="[openSubmenus[orderManagementMenu.menuName] ? 'rotate-180' : '', isCollapsed && 'lg:hidden']"
-                                />
-                            </button>
-
-                            <div
-                                v-show="openSubmenus[orderManagementMenu.menuName] && !isCollapsed"
-                                class="overflow-hidden mt-1 space-y-1"
-                            >
-                                <Link
-                                    v-for="child in orderManagementMenu.children"
-                                    :key="child.menuName"
-                                    :href="child.route"
-                                    :class="[
-                                        'flex items-center gap-3 pl-11 pr-4 py-2 rounded-lg text-sm transition-colors',
-                                        isActive(child.route)
-                                            ? 'text-indigo-200 bg-slate-800/60'
-                                            : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200',
-                                    ]"
-                                >
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                                    {{ child.menuName }}
-                                </Link>
-                            </div>
                         </div>
 
                         <div class="space-y-1">
@@ -329,43 +283,21 @@ const badgeDotClasses = (color) =>
                                         <span :class="isCollapsed && 'lg:hidden'">{{ menu.menuName }}</span>
                                     </div>
                                     <span
-                                        v-if="menu.hasBadge"
+                                        v-if="menu.hasBadge && menuBadgeCount(menu.menuName) > 0"
                                         class="text-xs px-2 py-0.5 rounded-full font-semibold border"
                                         :class="[badgeClasses(menu.badgeColor), isCollapsed && 'lg:hidden']"
-                                    >1</span>
+                                    >{{ menuBadgeCount(menu.menuName) > 9 ? '9+' : menuBadgeCount(menu.menuName) }}</span>
+                                    <span
+                                        v-if="menu.hasBadge && menuBadgeCount(menu.menuName) > 0 && isCollapsed"
+                                        class="hidden lg:block lg:absolute lg:top-1 lg:right-1 w-2 h-2 rounded-full"
+                                        :class="badgeDotClasses(menu.badgeColor)"
+                                    ></span>
                                 </Link>
                             </template>
                         </div>
                     </nav>
                 </div>
 
-                <!-- Bottom profile -->
-                <div class="p-4 border-t border-surface-border bg-slate-900/40">
-                    <div
-                        class="flex items-center justify-between p-2 rounded-xl bg-slate-800/50 border border-white/5 hover:border-indigo-500/30 transition-all group"
-                        :class="isCollapsed && 'lg:justify-center'"
-                    >
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-9 h-9 shrink-0 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-bold text-xs text-white shadow-sm ring-1 ring-white/20">
-                                {{ userInitials }}
-                            </div>
-                            <div class="truncate" :class="isCollapsed && 'lg:hidden'">
-                                <h4 class="text-xs font-semibold text-slate-100 truncate group-hover:text-indigo-200">{{ userName }}</h4>
-                                <span class="text-[11px] text-slate-400 block truncate">Admin</span>
-                            </div>
-                        </div>
-                        <Link
-                            :href="route('logout')"
-                            method="post"
-                            as="button"
-                            :title="isCollapsed ? 'Sign out' : null"
-                            class="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition-colors"
-                            :class="isCollapsed && 'lg:hidden'"
-                        >
-                            <font-awesome-icon icon="fa-solid fa-right-from-bracket" class="text-sm" />
-                        </Link>
-                    </div>
-                </div>
             </div>
         </aside>
 
@@ -382,32 +314,65 @@ const badgeDotClasses = (color) =>
                     </button>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-3">
+                    <a
+                        :href="route('landing-page')"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-surface-card border border-surface-border hover:border-surface-borderHover hover:text-white transition-all"
+                    >
+                        jerseyconnect.shop
+                        <font-awesome-icon icon="fa-solid fa-arrow-up-right-from-square" class="text-[10px] text-slate-500" />
+                    </a>
+
+                    <Link
+                        :href="route('admin.messages.index')"
+                        class="relative p-2 rounded-lg text-slate-300 bg-surface-card border border-surface-border hover:border-surface-borderHover hover:text-white transition-all"
+                        title="Messages"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-bell" />
+                        <span
+                            v-if="unreadMessagesCount > 0"
+                            class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-surface-sidebar"
+                        >
+                            {{ unreadMessagesCount > 9 ? '9+' : unreadMessagesCount }}
+                        </span>
+                    </Link>
+
+                    <div class="w-px h-6 bg-surface-border mx-0.5"></div>
+
                     <Link
                         :href="route('admin.profile')"
                         method="get"
                         as="button"
-                        class="px-4 py-2 text-sm font-medium text-slate-300 bg-surface-card hover:bg-slate-800/80 border border-surface-border hover:border-surface-borderHover rounded-xl transition-all"
+                        class="p-2 rounded-lg text-slate-300 bg-surface-card border border-surface-border hover:border-surface-borderHover hover:text-white transition-all"
+                        title="Profile"
                     >
-                        <font-awesome-icon icon="fa-solid fa-user-tie" class="mr-1.5" />
-                        Profile
+                        <font-awesome-icon icon="fa-solid fa-user-tie" />
                     </Link>
-                    <Link
-                        :href="route('landing-page')"
-                        method="get"
-                        as="button"
-                        class="px-4 py-2 text-sm font-medium text-slate-300 bg-surface-card hover:bg-slate-800/80 border border-surface-border hover:border-surface-borderHover rounded-xl transition-all"
-                    >
-                        <font-awesome-icon icon="fa-solid fa-newspaper" class="mr-1.5" />
-                        Website
-                    </Link>
-                    <Link
-                        :href="route('logout')"
-                        method="post"
-                        as="button"
-                        class="px-3 py-2 text-sm font-medium text-slate-300 bg-surface-card hover:bg-rose-500/10 hover:text-rose-400 border border-surface-border hover:border-rose-500/30 rounded-xl transition-all"
+                    <button
+                        type="button"
+                        class="p-2 rounded-lg text-slate-300 bg-surface-card border border-surface-border hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-all"
+                        title="Sign out"
+                        @click="showLogoutConfirm = true"
                     >
                         <font-awesome-icon icon="fa-solid fa-right-from-bracket" />
+                    </button>
+
+                    <Link
+                        :href="route('admin.profile')"
+                        class="hidden sm:block shrink-0 rounded-lg ring-1 ring-white/20 hover:ring-2 hover:ring-indigo-400/50 transition-all"
+                        title="Profile"
+                    >
+                        <img
+                            v-if="user?.user_info?.avatar_url"
+                            :src="user.user_info.avatar_url"
+                            alt="Profile picture"
+                            class="w-9 h-9 rounded-lg object-cover"
+                        />
+                        <div v-else class="w-9 h-9 flex items-center justify-center font-bold text-xs text-white rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500">
+                            {{ userInitials }}
+                        </div>
                     </Link>
                 </div>
             </header>
@@ -421,5 +386,70 @@ const badgeDotClasses = (color) =>
                 </div>
             </main>
         </div>
+
+        <!-- Sign out confirmation -->
+        <Modal :show="showLogoutConfirm" @close="showLogoutConfirm = false" :maxWidth="'sm'">
+            <ModalHeader
+                icon="fa-solid fa-right-from-bracket"
+                icon-class="text-rose-400 bg-rose-500/15 border-rose-500/25"
+                title="Sign out?"
+                @close="showLogoutConfirm = false"
+            />
+            <div class="px-5 py-5 text-slate-200">
+                <p class="text-sm text-slate-400">You'll need to sign back in to access the admin dashboard.</p>
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                    <SecondaryButton type="button" class="flex items-center justify-center" @click="showLogoutConfirm = false">Cancel</SecondaryButton>
+                    <PrimaryButton
+                        type="button"
+                        class="flex items-center justify-center gap-1 !bg-rose-600 hover:!bg-rose-500"
+                        :disabled="loggingOut"
+                        :class="{ 'opacity-25': loggingOut }"
+                        @click="confirmLogout"
+                    >
+                        <div class="text-sm" v-if="loggingOut">
+                            <font-awesome-icon icon="fa-solid fa-spinner" spin />
+                        </div>
+                        Sign Out
+                        <font-awesome-icon icon="fa-solid fa-right-from-bracket" />
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
     </div>
 </template>
+
+<style>
+.admin-scrollbar ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.admin-scrollbar ::-webkit-scrollbar-track {
+    background: transparent;
+}
+.admin-scrollbar ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 9999px;
+}
+.admin-scrollbar ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
+.admin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #1e293b transparent;
+}
+
+/* Native date/time inputs default to a near-invisible dark picker icon on
+   our dark surfaces — force the browser's dark UI so the calendar icon and
+   popup are actually visible. */
+.admin-scrollbar input[type="date"],
+.admin-scrollbar input[type="time"],
+.admin-scrollbar input[type="datetime-local"] {
+    color-scheme: dark;
+}
+.admin-scrollbar input[type="date"]::-webkit-calendar-picker-indicator,
+.admin-scrollbar input[type="time"]::-webkit-calendar-picker-indicator,
+.admin-scrollbar input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.75) brightness(1.3);
+    cursor: pointer;
+}
+</style>

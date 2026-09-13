@@ -12,6 +12,7 @@ class Jersey extends Model
 
     protected $fillable = [
         'name',
+        'description',
         'image',
         'price',
         'badge',

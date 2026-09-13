@@ -19,6 +19,7 @@ class JerseyController extends Controller
             ->map(fn(Jersey $jersey) => [
                 'id'              => $jersey->id,
                 'name'            => $jersey->name,
+                'description'     => $jersey->description,
                 'image'           => $jersey->image_url,
                 'price'           => $jersey->price,
                 'badge'           => $jersey->badge,

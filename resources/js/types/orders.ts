@@ -1,4 +1,4 @@
-import type { DesignRequest } from "@/types/jersey";
+import type { DesignRequest, RosterPlayer } from "@/types/jersey";
 
 /**
  * An Order is created the moment a DesignRequest becomes "approved".
@@ -61,6 +61,9 @@ export interface Order {
 
     quantity: number;
     unit_price: number;
+
+    /** The team roster submitted on the originating design request, if any. */
+    players?: RosterPlayer[];
 
     address: Address;
 

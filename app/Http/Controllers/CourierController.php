@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Courier;
+use App\Models\CourierReceipt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,11 @@ class CourierController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Couriers', [
-            'couriers' => Courier::latest()->get(),
+            'couriers' => Courier::withCount('courierReceipts')->latest()->get(),
+            'stats' => [
+                'total_waybills' => CourierReceipt::count(),
+                'total_shipping_fees' => (int) CourierReceipt::sum('shipping_fee'),
+            ],
         ]);
     }
 

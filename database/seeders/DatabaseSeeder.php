@@ -24,9 +24,10 @@ class DatabaseSeeder extends Seeder
             'address' => 'Pob. Trinidad, Bohol',
         ]);
 
-        User::factory()->create([
+        User::create([
             'user_info_id' => 1,
             'email' => 'admin@example.com',
+            'email_verified_at' => now(),
             'password' => bcrypt('password'),
             'role' => 'admin',
         ]);

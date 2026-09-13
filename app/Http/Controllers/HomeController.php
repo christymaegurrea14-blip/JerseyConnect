@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DesignRequest;
 use App\Models\Jersey;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -13,13 +14,60 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
-        $data = Jersey::query()
+        return Inertia::render('Client/Home', [
+            'data' => $this->activeJerseys(),
+            'activeOrder' => $this->getActiveOrder(),
+            'featuredJerseyId' => $this->getBestSellingJerseyId(),
+            'pendingDesignRequestsCount' => DesignRequest::where('user_id', Auth::id())
+                ->whereIn('status', ['pending_review', 'in_discussion', 'revision_requested'])
+                ->count(),
+        ]);
+    }
+
+    /**
+     * The hero "featured" jersey automatically follows real demand — whichever
+     * active template has sold the most sets across all orders. Falls back to
+     * null (letting the frontend fall back to its own badge-priority pick)
+     * once when the shop has no order history yet.
+     */
+    private function getBestSellingJerseyId(): ?int
+    {
+        $topSellerName = Order::select('template_name')
+            ->selectRaw('SUM(quantity) as sold')
+            ->groupBy('template_name')
+            ->orderByDesc('sold')
+            ->value('template_name');
+
+        if (! $topSellerName) {
+            return null;
+        }
+
+        return Jersey::where('status', 'active')
+            ->where('name', $topSellerName)
+            ->value('id');
+    }
+
+    /**
+     * The full browsable catalog — reached from the "Browse Full Catalogue"
+     * link on the home page preview.
+     */
+    public function catalogue(): Response
+    {
+        return Inertia::render('Client/Catalogue', [
+            'data' => $this->activeJerseys(),
+        ]);
+    }
+
+    private function activeJerseys()
+    {
+        return Jersey::query()
             ->where('status', 'active')
             ->latest()
             ->get()
             ->map(fn(Jersey $jersey) => [
                 'id'            => $jersey->id,
                 'name'          => $jersey->name,
+                'description'   => $jersey->description,
                 'sport'         => $jersey->sport,
                 'price'         => $jersey->price,
                 'badge'         => $jersey->badge,
@@ -28,10 +76,31 @@ class HomeController extends Controller
                 'accentColor'   => $jersey->accent_color,
                 'imagePath'     => $jersey->image_url,
             ]);
+    }
 
-        return Inertia::render('Client/Home', [
-            'data' => $data,
-        ]);
+    /**
+     * The customer's most recent order that hasn't reached "completed" yet —
+     * powers the real production-pipeline widget on the home page.
+     */
+    private function getActiveOrder(): ?array
+    {
+        $order = Order::where('user_id', Auth::id())
+            ->where('status', '!=', 'completed')
+            ->with('courierReceipt.courier')
+            ->latest()
+            ->first();
+
+        if (! $order) {
+            return null;
+        }
+
+        return [
+            ...$order->only([
+                'id', 'order_number', 'template_name', 'team_name',
+                'quantity', 'status', 'created_at',
+            ]),
+            'courier_receipt' => $order->courierReceipt,
+        ];
     }
 
     /**

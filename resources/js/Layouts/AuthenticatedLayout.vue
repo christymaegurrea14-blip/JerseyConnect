@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { Link, usePage, usePoll } from "@inertiajs/vue3";
+import { Link, router, usePage, usePoll } from "@inertiajs/vue3";
+
+const page = usePage();
 
 const unreadMessagesCount = computed(
     () => (page.props.unreadMessagesCount as number) ?? 0,
@@ -8,164 +10,209 @@ const unreadMessagesCount = computed(
 
 usePoll(3000, { only: ["unreadMessagesCount"] });
 
-const isShowSideBar = ref(true);
-const page = usePage();
+const user = computed(() => page.props.auth?.user as any);
+const userName = computed(() => {
+    const info = user.value?.user_info;
+    const name = [info?.first_name, info?.last_name].filter(Boolean).join(" ");
+    return name || user.value?.email || "Client";
+});
+const userInitials = computed(() =>
+    userName.value
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part: string) => part[0]?.toUpperCase())
+        .join("") || "C",
+);
 
-const sidebarMenus = [
-    {
-        menuName: "Home",
-        route: route("client.home.index"),
-        icon: "fa-solid fa-tachograph-digital",
-    },
-    {
-        menuName: "All Designs",
-        route: route("client.design.index"),
-        icon: "fa-solid fa-tshirt",
-    },
-    {
-        menuName: "My Orders",
-        route: route("client.orders.index"),
-        icon: "fa-solid fa-shopping-basket",
-    },
-    {
-        menuName: "Messages",
-        route: route("client.chat.index"),
-        icon: "fa-solid fa-message",
-        hasBadge: true,
-    },
-    {
-        menuName: "Profile",
-        route: route("client.profile.index"),
-        icon: "fa-solid fa-user-circle",
-    },
+const navLinks = [
+    { menuName: "Catalogue", route: route("client.home.index"), icon: "fa-solid fa-shirt" },
+    { menuName: "My Orders", route: route("client.orders.index"), icon: "fa-solid fa-shopping-basket" },
+    { menuName: "Team Rosters", route: route("client.rosters.index"), icon: "fa-solid fa-users" },
+    { menuName: "Artist Chat", route: route("client.chat.index"), icon: "fa-solid fa-message", hasBadge: true },
 ];
 
-const isActive = (href: string | URL) =>
-    page.url.startsWith(new URL(href).pathname);
+// Design-request detail/payment pages live under /client/design/{id} but
+// belong to "My Orders" in the nav; the roster sub-page belongs to "Team
+// Rosters" instead — both need a bit more than a plain prefix match.
+const isActive = (href: string | URL) => {
+    const path = new URL(href).pathname;
+    if (path === route("client.orders.index")) {
+        return page.url.startsWith("/client/orders") || (page.url.startsWith("/client/design") && !page.url.includes("/roster"));
+    }
+    if (path === route("client.rosters.index")) {
+        return page.url.startsWith("/client/rosters") || page.url.includes("/roster");
+    }
+    return page.url.startsWith(path);
+};
+
+const mobileMenuOpen = ref(false);
+
+// ── Logout confirmation ─────────────────────────────────────────────────────
+const showLogoutConfirm = ref(false);
+const loggingOut = ref(false);
+
+function confirmLogout() {
+    loggingOut.value = true;
+    router.post(
+        route("logout"),
+        {},
+        {
+            onFinish: () => {
+                loggingOut.value = false;
+                showLogoutConfirm.value = false;
+            },
+        },
+    );
+}
 </script>
 
 <template>
-    <div class="flex h-screen bg-gray-100 overflow-hidden">
-        <!-- Mobile Overlay (only on small screens) -->
-        <div
-            v-if="isShowSideBar"
-            @click="isShowSideBar = false"
-            class="fixed inset-0 bg-black/50 z-20 lg:hidden"
-        ></div>
-
-        <!-- Sidebar -->
-        <aside
-            :class="[
-                isShowSideBar
-                    ? 'translate-x-0 lg:w-64'
-                    : '-translate-x-full lg:translate-x-0 lg:w-0',
-                'fixed inset-y-0 left-0 z-30 w-64 bg-ink text-white transition-all duration-300 ease-in-out shadow-xl',
-                'lg:relative lg:inset-y-auto lg:left-auto lg:z-auto lg:flex-shrink-0 lg:overflow-hidden',
-            ]"
-        >
-            <div class="w-64 h-full flex flex-col">
-                <!-- Logo -->
-                <div
-                    class="h-16 flex justify-between items-center ps-8 pe-5 border-b border-slate-800"
-                >
-                    <Link
-                        class="flex items-center gap-2 no-underline flex-shrink-0"
-                        :href="route('client.home.index')"
-                    >
-                        <div class="py-1 rounded bg-white">
-                            <img
-                                class="h-8 w-auto"
-                                src="/images/printcode.png"
-                                alt="logo"
-                            />
+    <div class="min-h-screen bg-[#f7f9fe] font-sans antialiased">
+        <!-- Top nav -->
+        <header class="sticky top-0 z-50 glass-nav border-b border-ink/10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between gap-4">
+                    <!-- Brand -->
+                    <Link :href="route('client.home.index')" class="flex items-center gap-2.5 shrink-0 group">
+                        <div class="py-1 px-1 rounded bg-white shadow-sm">
+                            <img class="h-7 w-auto" src="/images/printcode.png" alt="PrintCode" />
                         </div>
-                        <span class="font-semibold text-[15px] tracking-tight"
-                            >PrintCode</span
-                        >
+                        <div class="hidden sm:flex flex-col leading-none">
+                            <span class="flex items-center gap-1.5">
+                                <span class="text-base font-black tracking-tight text-ink">PRINT<span class="text-cobalt">CODE</span></span>
+                                <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-cobalt/10 text-cobalt tracking-wider">Studio</span>
+                            </span>
+                            <span class="text-[10px] text-ink/40 font-semibold uppercase tracking-widest mt-0.5">Client Portal</span>
+                        </div>
                     </Link>
-                    <button
-                        @click="isShowSideBar = false"
-                        class="lg:hidden text-gray-400 hover:text-white"
-                    >
-                        <font-awesome-icon icon="fa-solid fa-xmark" />
-                    </button>
+
+                    <!-- Nav links -->
+                    <nav class="hidden md:flex items-center gap-1 text-sm">
+                        <Link
+                            v-for="link in navLinks"
+                            :key="link.menuName"
+                            :href="link.route"
+                            class="relative px-3 py-1.5 rounded-lg font-bold transition-all"
+                            :class="isActive(link.route) ? 'bg-cobalt/10 text-cobalt' : 'text-ink/60 hover:bg-ink/5 hover:text-ink'"
+                        >
+                            {{ link.menuName }}
+                            <span
+                                v-if="link.hasBadge && unreadMessagesCount > 0"
+                                class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-accent"
+                            />
+                        </Link>
+                    </nav>
+
+                    <!-- Right actions -->
+                    <div class="flex items-center gap-2 sm:gap-3">
+                        <a
+                            :href="route('landing-page')"
+                            class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-ink/10 hover:border-ink/20 text-xs font-semibold text-ink/70 hover:text-ink transition-all shadow-xs"
+                        >
+                            <font-awesome-icon icon="fa-solid fa-newspaper" class="text-[11px]" />
+                            Website
+                        </a>
+                        <Link
+                            :href="route('client.profile.index')"
+                            class="flex items-center gap-2 pl-1 group"
+                            title="Profile"
+                        >
+                            <img
+                                v-if="user?.user_info?.avatar_url"
+                                :src="user.user_info.avatar_url"
+                                alt="Profile picture"
+                                class="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm group-hover:ring-cobalt/30 transition-all"
+                            />
+                            <div
+                                v-else
+                                class="w-8 h-8 rounded-full bg-gradient-to-tr from-cobalt to-accent flex items-center justify-center font-black text-[11px] text-white ring-2 ring-white shadow-sm group-hover:ring-cobalt/30 transition-all"
+                            >
+                                {{ userInitials }}
+                            </div>
+                        </Link>
+                        <button
+                            type="button"
+                            class="p-2 rounded-full bg-white border border-ink/10 hover:border-accent/40 hover:bg-accent/5 text-ink/50 hover:text-accent transition-all"
+                            title="Sign out"
+                            @click="showLogoutConfirm = true"
+                        >
+                            <font-awesome-icon icon="fa-solid fa-right-from-bracket" class="text-sm" />
+                        </button>
+                        <button
+                            type="button"
+                            class="md:hidden p-2 rounded-full text-ink/60 hover:bg-ink/5 transition-colors"
+                            @click="mobileMenuOpen = !mobileMenuOpen"
+                        >
+                            <font-awesome-icon :icon="mobileMenuOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" />
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Navigation -->
-                <nav class="p-4 space-y-2">
+                <!-- Mobile nav -->
+                <nav v-if="mobileMenuOpen" class="md:hidden pb-4 flex flex-col gap-1">
                     <Link
-                        v-for="menu in sidebarMenus"
-                        :key="menu.menuName"
-                        :href="menu.route"
-                        :class="[
-                            'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200',
-                            isActive(menu.route)
-                                ? 'bg-slate-800 text-white font-semibold'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white',
-                        ]"
+                        v-for="link in navLinks"
+                        :key="link.menuName"
+                        :href="link.route"
+                        class="relative flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-sm transition-all"
+                        :class="isActive(link.route) ? 'bg-cobalt/10 text-cobalt' : 'text-ink/70 hover:bg-ink/5'"
+                        @click="mobileMenuOpen = false"
                     >
-                        <div class="relative">
-                            <font-awesome-icon :icon="menu.icon" />
-                            <span
-                                v-if="
-                                    menu.menuName === 'Messages' &&
-                                    unreadMessagesCount > 0
-                                "
-                                class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
-                            />
-                        </div>
-                        <span>{{ menu.menuName }}</span>
+                        <font-awesome-icon :icon="link.icon" class="w-4" />
+                        {{ link.menuName }}
+                        <span v-if="link.hasBadge && unreadMessagesCount > 0" class="w-2 h-2 rounded-full bg-accent" />
                     </Link>
                 </nav>
             </div>
-        </aside>
+        </header>
 
-        <!-- Main Content -->
-        <div class="flex flex-col flex-1 overflow-hidden">
-            <!-- Navbar -->
-            <header
-                class="h-16 bg-navy shadow-sm bg-paper border-b border-gray-200 flex items-center justify-between px-6"
-            >
-                <div class="flex items-center gap-4">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
+            <slot />
+        </main>
+
+        <!-- Logout confirm -->
+        <div
+            v-if="showLogoutConfirm"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm"
+            @click.self="!loggingOut && (showLogoutConfirm = false)"
+        >
+            <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                        <font-awesome-icon icon="fa-solid fa-right-from-bracket" />
+                    </div>
+                    <h3 class="text-base font-bold text-ink">Sign out?</h3>
+                </div>
+                <p class="text-sm text-ink/60 mb-5">You'll need to sign in again to access your account.</p>
+                <div class="flex justify-between gap-2">
                     <button
-                        @click="isShowSideBar = !isShowSideBar"
-                        class="text-gray-400 hover:text-white transition"
+                        type="button"
+                        class="px-4 py-2 rounded-xl border border-ink/10 text-sm font-bold text-ink/70 hover:bg-ink/5 transition-colors disabled:opacity-50"
+                        :disabled="loggingOut"
+                        @click="showLogoutConfirm = false"
                     >
-                        <font-awesome-icon
-                            icon="fa-solid fa-bars"
-                            class="text-xl text-ink"
-                        />
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent-dark transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                        :disabled="loggingOut"
+                        @click="confirmLogout"
+                    >
+                        <font-awesome-icon v-if="loggingOut" icon="fa-solid fa-spinner" spin />
+                        Sign Out
                     </button>
                 </div>
-
-                <div class="flex items-center gap-2">
-                    <Link
-                        :href="route('landing-page')"
-                        method="get"
-                        as="button"
-                        class="px-4 py-2 text-paper bg-ink hover:bg-warn hover:text-ink rounded-lg transition"
-                    >
-                        <font-awesome-icon icon="fa-solid fa-newspaper" />
-                        Website
-                    </Link>
-                    <Link
-                        :href="route('logout')"
-                        method="post"
-                        as="button"
-                        class="px-4 py-2 text-paper bg-ink hover:bg-warn hover:text-ink rounded-lg transition"
-                    >
-                        <font-awesome-icon
-                            icon="fa-solid fa-right-from-bracket"
-                        />
-                    </Link>
-                </div>
-            </header>
-
-            <main class="flex-1 overflow-y-auto p-6 relative bg-gray-100">
-                <div class="relative z-10">
-                    <slot />
-                </div>
-            </main>
+            </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+.glass-nav {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+</style>

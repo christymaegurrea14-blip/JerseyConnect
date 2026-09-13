@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DesignRequest;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,17 +12,40 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OrderController extends Controller
 {
+    /**
+     * "My Orders" is the client's single unified list — it covers a kit
+     * request from submission all the way through delivery, matching how
+     * the client actually thinks about it (one thing, not two). Under the
+     * hood a request is still a DesignRequest until it's approved+paid,
+     * at which point an Order row exists for it — we just merge both real
+     * sources here instead of splitting them into separate pages.
+     */
     public function index(): Response
     {
         $orders = Order::query()
             ->where('user_id', Auth::id())
-            ->with(['address', 'courierReceipt.courier'])
+            ->with(['address', 'courierReceipt.courier', 'designRequest.players'])
             ->latest()
             ->get()
             ->map(fn(Order $order) => $this->transform($order));
 
+        $designs = DesignRequest::query()
+            ->where('user_id', Auth::id())
+            ->whereDoesntHave('order')
+            ->with(['template:id,image', 'players'])
+            ->latest()
+            ->get()
+            ->map(function (DesignRequest $designRequest) {
+                $array = $designRequest->toArray();
+                $array['original_template_image'] = $designRequest->template?->image_url;
+                unset($array['template']);
+
+                return $array;
+            });
+
         return Inertia::render('Client/Orders', [
             'orders' => $orders,
+            'designs' => $designs,
             'readOnly' => false,
         ]);
     }
@@ -81,6 +105,7 @@ class OrderController extends Controller
             'template_image' => $order->template_image_url,
             'address' => $order->address,
             'courier_receipt' => $order->courierReceipt,
+            'players' => $order->designRequest?->players ?? [],
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DesignRequest;
+use App\Models\Jersey;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\User;
@@ -53,6 +54,7 @@ class DashboardController extends Controller
             ->select($revenueExpr)->value('total') ?? 0;
         $revenueLastWeek = (int) Order::whereBetween('created_at', [$lastWeekStart, $lastWeekEnd])
             ->select($revenueExpr)->value('total') ?? 0;
+        $revenueTrend = $this->getRevenueTrend();
 
         // Pending design requests
         $pendingDesignRequests = DesignRequest::where('status', 'pending_review')->count();
@@ -83,6 +85,7 @@ class DashboardController extends Controller
             'revenue' => [
                 'value' => $revenueThisWeek,
                 'change' => $this->percentChange($revenueThisWeek, $revenueLastWeek),
+                'trend' => $revenueTrend,
             ],
             'pendingDesignRequests' => [
                 'value' => $pendingDesignRequests,
@@ -103,22 +106,62 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Real daily revenue for the last 7 days (oldest to newest), so the
+     * dashboard can plot an actual trend line instead of a fabricated one.
+     */
+    private function getRevenueTrend(): array
+    {
+        $start = now()->subDays(6)->startOfDay();
+
+        $rows = Order::where('created_at', '>=', $start)
+            ->selectRaw('DATE(created_at) as day, SUM((quantity * unit_price) + COALESCE(shipping_fee, 0)) as total')
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        $days = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $days[] = (int) ($rows[$date] ?? 0);
+        }
+
+        return $days;
+    }
+
     private function getBestSellingTemplates()
     {
-        return Order::select(
+        $rows = Order::select(
                 'template_name',
                 DB::raw('SUM(quantity) as sold'),
+                DB::raw('COUNT(*) as order_count'),
                 DB::raw('MAX(template_image) as template_image'),
+                DB::raw('MAX(unit_price) as unit_price'),
             )
             ->groupBy('template_name')
             ->orderByDesc('sold')
-            ->limit(4)
+            ->limit(3)
+            ->get();
+
+        // Best-effort match back to the live catalog entry (by name) for
+        // its sport/badge — a template can be renamed/removed after orders
+        // exist, so this is nullable rather than a hard join.
+        $jerseysByName = Jersey::whereIn('name', $rows->pluck('template_name'))
             ->get()
-            ->map(fn($row) => [
+            ->keyBy('name');
+
+        return $rows->map(function ($row) use ($jerseysByName) {
+            $jersey = $jerseysByName->get($row->template_name);
+
+            return [
                 'name' => $row->template_name,
                 'sold' => (int) $row->sold,
+                'orderCount' => (int) $row->order_count,
+                'unitPrice' => (int) $row->unit_price,
                 'image' => $row->template_image ? Storage::disk('public')->url($row->template_image) : null,
-            ]);
+                'sport' => $jersey?->sport,
+                'badge' => $jersey?->badge,
+            ];
+        });
     }
 
     private function orderStatusLabel(string $status): string

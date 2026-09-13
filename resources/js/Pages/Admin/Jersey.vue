@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import Modal from "@/Components/Modal.vue";
+import ModalHeader from "@/Components/ModalHeader.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import TextInput from "@/Components/TextInput.vue";
@@ -15,6 +16,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 interface JerseyTemplates {
     id: number;
     name: string;
+    description: string | null;
     image: string;
     price: number;
     badge?: "New" | "Bestseller" | "Hot";
@@ -61,6 +63,12 @@ const statusBadge: Record<
         label: "Inactive",
         class: "bg-rose-500/15 text-rose-300 border-rose-500/25",
     },
+};
+
+const jerseyBadgeClass: Record<string, string> = {
+    Hot: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    New: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+    Bestseller: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
 };
 
 const badgeOptions = ["New", "Bestseller", "Hot"];
@@ -150,6 +158,8 @@ function closeModal() {
     addImageStyle.value = { backgroundImage: "" };
     editImageStyle.value = { backgroundImage: "" };
     selectedJersey.value = null;
+    selectedJerseyMeta.value = null;
+    deleteForm.clearErrors();
 }
 
 function formatDate(value: string) {
@@ -225,6 +235,7 @@ const addImageStyle = ref<ImageStyle>({ backgroundImage: "" });
 
 const addForm = useForm({
     name: "",
+    description: "",
     price: "",
     badge: "" as "" | (typeof badgeOptions)[number],
     primary_color: "#14202B",
@@ -269,10 +280,12 @@ function openViewModal(row: JerseyTemplates) {
 /* ---------------- EDIT ---------------- */
 
 const editImageStyle = ref<ImageStyle>({ backgroundImage: "" });
+const selectedJerseyMeta = ref<JerseyTemplates | null>(null);
 
 const editForm = useForm({
     id: null as number | null,
     name: "",
+    description: "",
     price: "",
     badge: "" as "" | (typeof badgeOptions)[number],
     primary_color: "#14202B",
@@ -286,9 +299,11 @@ const editForm = useForm({
 function openEditModal(row: JerseyTemplates) {
     editForm.reset();
     editForm.clearErrors();
+    selectedJerseyMeta.value = row;
 
     editForm.id = row.id;
     editForm.name = row.name;
+    editForm.description = row.description ?? "";
     editForm.price = String(row.price);
     editForm.badge = row.badge ?? "";
     editForm.primary_color = row.primary_color;
@@ -322,6 +337,25 @@ function submitEdit() {
             onSuccess: () => closeModal(),
         });
 }
+
+/* ---------------- DELETE ---------------- */
+
+const deleteForm = useForm({});
+
+function openDeleteModal() {
+    modal.title.value = "Delete Jersey Template";
+    modal.type.value = "Delete";
+    modal.openModal();
+}
+
+function submitDelete() {
+    if (!selectedJerseyMeta.value) return;
+
+    deleteForm.delete(route("admin.jersey.destroy", selectedJerseyMeta.value.id), {
+        preserveScroll: true,
+        onSuccess: () => closeModal(),
+    });
+}
 </script>
 
 <template>
@@ -330,7 +364,7 @@ function submitEdit() {
     <AdminLayout>
         <div class="space-y-6">
             <!-- Header -->
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div v-reveal class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex flex-col gap-1">
                     <h1 class="text-2xl font-extrabold text-white tracking-tight">Jersey Templates</h1>
                     <p class="text-sm text-slate-400">
@@ -344,27 +378,51 @@ function submitEdit() {
             </div>
 
             <!-- Stat cards -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Total templates</span>
-                    <div class="text-2xl font-bold text-white mt-1.5">{{ jerseyTemplates.length }}</div>
+            <div v-reveal="80" class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div v-reveal="0" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-slate-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-slate-500/5 rounded-full blur-xl group-hover:bg-slate-400/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Total templates</span>
+                        <span class="p-1.5 rounded-lg bg-slate-800/80 text-slate-400">
+                            <font-awesome-icon icon="fa-solid fa-shirt" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-white mt-3">{{ jerseyTemplates.length }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Active</span>
-                    <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ activeCount }}</div>
+                <div v-reveal="70" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Active</span>
+                        <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <font-awesome-icon icon="fa-solid fa-circle-check" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-emerald-300 mt-3">{{ activeCount }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Inactive</span>
-                    <div class="text-2xl font-bold text-rose-300 mt-1.5">{{ inactiveCount }}</div>
+                <div v-reveal="140" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-rose-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-rose-500/5 rounded-full blur-xl group-hover:bg-rose-400/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Inactive</span>
+                        <span class="p-1.5 rounded-lg bg-slate-800/80 text-rose-400/70 border border-white/5">
+                            <font-awesome-icon icon="fa-solid fa-xmark-circle" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-rose-400 mt-3">{{ inactiveCount }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Badged</span>
-                    <div class="text-2xl font-bold text-indigo-300 mt-1.5">{{ badgedCount }}</div>
+                <div v-reveal="210" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Badged</span>
+                        <span class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <font-awesome-icon icon="fa-solid fa-star" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-indigo-300 mt-3">{{ badgedCount }}</div>
                 </div>
             </div>
 
             <!-- Search -->
-            <div class="relative w-full lg:w-72">
+            <div v-reveal="140" class="relative w-full lg:w-72">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
                     <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
                 </span>
@@ -427,7 +485,7 @@ function submitEdit() {
             </div>
 
             <!-- Table -->
-            <div class="glass-panel rounded-2xl overflow-hidden">
+            <div v-reveal="200" class="glass-panel rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -453,16 +511,28 @@ function submitEdit() {
                             >
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-2.5">
-                                        <img
-                                            :src="row.image"
-                                            :alt="row.name"
-                                            class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-slate-900 border border-white/10 p-1"
-                                        />
+                                        <div
+                                            class="h-10 w-10 flex-shrink-0 rounded-lg p-[1.5px]"
+                                            :style="{ background: `linear-gradient(135deg, ${row.primary_color}, ${row.secondary_color})` }"
+                                        >
+                                            <div class="h-full w-full rounded-[6px] bg-white flex items-center justify-center overflow-hidden p-0.5">
+                                                <img :src="row.image" :alt="row.name" class="h-full w-full object-contain" />
+                                            </div>
+                                        </div>
                                         <span class="font-semibold text-white">{{ row.name }}</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-right text-slate-200 font-medium">₱{{ row.price }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ row.badge ?? "—" }}</td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        v-if="row.badge"
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold border"
+                                        :class="jerseyBadgeClass[row.badge]"
+                                    >
+                                        {{ row.badge }}
+                                    </span>
+                                    <span v-else class="text-xs text-slate-600 font-mono">—</span>
+                                </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-center gap-1">
                                         <span class="h-4 w-4 rounded-full border border-white/20" :style="{ backgroundColor: row.primary_color }" />
@@ -533,73 +603,105 @@ function submitEdit() {
 
         <!-- Add Modal -->
         <Modal :show="modal.type.value === 'Add'" @close="closeModal()" :maxWidth="'5xl'">
-            <form @submit.prevent="submitAdd" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-plus-circle" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
-                <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block font-medium text-slate-300">Jersey Image</label>
-                        <ImageUpload class="mt-1" :image="addImageStyle" @imageFile="onAddImageChange" />
-                        <InputError :message="addForm.errors.image" class="mt-2" />
+            <ModalHeader
+                icon="fa-solid fa-plus-circle"
+                :title="modal.title.value"
+                subtitle="Add a new template to the storefront catalog"
+                @close="closeModal()"
+            />
+            <form @submit.prevent="submitAdd" class="text-slate-200">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 px-5 py-5 max-h-[calc(88vh-140px)] overflow-y-auto">
+                    <!-- Visual -->
+                    <div class="lg:col-span-5 flex flex-col gap-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Jersey Image</span>
+                        <ImageUpload :image="addImageStyle" @imageFile="onAddImageChange" />
+                        <InputError :message="addForm.errors.image" />
                     </div>
 
-                    <div class="flex flex-col gap-4">
-                        <div>
-                            <InputLabel for="name" value="Name" class="!text-slate-300" />
-                            <TextInput v-model="addForm.name" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="name" required />
-                            <InputError :message="addForm.errors.name" class="mt-2" />
+                    <!-- Specifications -->
+                    <div class="lg:col-span-7 flex flex-col gap-4">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-2">
+                            Template Specifications
                         </div>
 
                         <div>
-                            <InputLabel for="price" value="Price" class="!text-slate-300" />
-                            <TextInput v-model="addForm.price" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="price" required />
-                            <InputError :message="addForm.errors.price" class="mt-2" />
+                            <InputLabel for="name" value="Template Name" class="!text-slate-300 !text-xs !font-semibold" />
+                            <TextInput v-model="addForm.name" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="name" required placeholder="e.g. Arctic Frost" />
+                            <InputError :message="addForm.errors.name" class="mt-1.5" />
                         </div>
 
                         <div>
-                            <InputLabel for="badge" value="Badge" class="!text-slate-300" />
-                            <SelectInput v-model="addForm.badge" :options="badgeOptions" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="badge" required />
-                            <InputError :message="addForm.errors.badge" class="mt-2" />
+                            <InputLabel for="description" value="Description" class="!text-slate-300 !text-xs !font-semibold" />
+                            <textarea
+                                id="description"
+                                v-model="addForm.description"
+                                rows="3"
+                                placeholder="A short description shown on the customer-facing catalog card"
+                                class="mt-1.5 block w-full rounded-xl bg-slate-950/70 border border-white/10 text-sm text-slate-100 px-3 py-2.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                            ></textarea>
+                            <InputError :message="addForm.errors.description" class="mt-1.5" />
                         </div>
 
-                        <div>
-                            <InputLabel for="sport" value="Sport" class="!text-slate-300" />
-                            <SelectInput v-model="addForm.sport" :options="sportOptions" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="sport" required />
-                            <InputError :message="addForm.errors.sport" class="mt-2" />
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                             <div>
-                                <InputLabel for="primary" value="Primary Color" class="!text-slate-300" />
-                                <div class="mt-1 flex items-center gap-1">
-                                    <input type="color" v-model="addForm.primary_color" class="h-10 w-12 rounded border border-white/10 bg-slate-900" id="primary" />
-                                    <TextInput v-model="addForm.primary_color" class="block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" />
+                                <InputLabel for="price" value="Base Price (PHP)" class="!text-slate-300 !text-xs !font-semibold" />
+                                <div class="relative mt-1.5">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm pointer-events-none">₱</span>
+                                    <input
+                                        id="price"
+                                        v-model="addForm.price"
+                                        type="number"
+                                        min="0"
+                                        required
+                                        class="w-full pl-8 pr-3 py-2.5 rounded-xl bg-slate-950/70 border border-white/10 text-sm text-white font-semibold focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                    />
                                 </div>
+                                <InputError :message="addForm.errors.price" class="mt-1.5" />
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-slate-300">Secondary Color</label>
-                                <div class="mt-1 flex items-center gap-1">
-                                    <input type="color" v-model="addForm.secondary_color" class="h-10 w-12 rounded border border-white/10 bg-slate-900" />
-                                    <TextInput v-model="addForm.secondary_color" class="block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" />
-                                </div>
+                                <InputLabel for="badge" value="Commercial Badge" class="!text-slate-300 !text-xs !font-semibold" />
+                                <SelectInput v-model="addForm.badge" :options="badgeOptions" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="badge" required />
+                                <InputError :message="addForm.errors.badge" class="mt-1.5" />
                             </div>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300">Accent Color</label>
-                                <div class="mt-1 flex items-center gap-1">
-                                    <input type="color" v-model="addForm.accent_color" class="h-10 w-12 rounded border border-white/10 bg-slate-900" />
-                                    <TextInput v-model="addForm.accent_color" class="block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" />
+                        <div>
+                            <InputLabel for="sport" value="Sport / Apparel Type" class="!text-slate-300 !text-xs !font-semibold" />
+                            <SelectInput v-model="addForm.sport" :options="sportOptions" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="sport" required />
+                            <InputError :message="addForm.errors.sport" class="mt-1.5" />
+                        </div>
+
+                        <!-- Colorway swatches -->
+                        <div class="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 space-y-2.5">
+                            <span class="text-xs font-bold text-slate-200">Colorway Swatches</span>
+                            <div class="grid grid-cols-3 gap-2.5">
+                                <div class="space-y-1">
+                                    <span class="text-[10px] text-slate-400 block font-medium">Primary</span>
+                                    <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900 border border-white/10 cursor-pointer">
+                                        <input type="color" v-model="addForm.primary_color" class="h-5 w-5 rounded border-0 p-0 bg-transparent shrink-0 cursor-pointer" />
+                                        <input type="text" v-model="addForm.primary_color" class="w-full bg-transparent border-0 p-0 text-[11px] font-mono text-slate-200 focus:ring-0 uppercase font-semibold" />
+                                    </label>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-[10px] text-slate-400 block font-medium">Secondary</span>
+                                    <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900 border border-white/10 cursor-pointer">
+                                        <input type="color" v-model="addForm.secondary_color" class="h-5 w-5 rounded border-0 p-0 bg-transparent shrink-0 cursor-pointer" />
+                                        <input type="text" v-model="addForm.secondary_color" class="w-full bg-transparent border-0 p-0 text-[11px] font-mono text-slate-200 focus:ring-0 uppercase font-semibold" />
+                                    </label>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-[10px] text-slate-400 block font-medium">Accent</span>
+                                    <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900 border border-white/10 cursor-pointer">
+                                        <input type="color" v-model="addForm.accent_color" class="h-5 w-5 rounded border-0 p-0 bg-transparent shrink-0 cursor-pointer" />
+                                        <input type="text" v-model="addForm.accent_color" class="w-full bg-transparent border-0 p-0 text-[11px] font-mono text-slate-200 focus:ring-0 uppercase font-semibold" />
+                                    </label>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <hr class="mt-4 border-white/10" />
-                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="px-5 py-4 border-t border-white/10 bg-black/20 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
@@ -620,119 +722,203 @@ function submitEdit() {
 
         <!-- View Modal -->
         <Modal :show="modal.type.value === 'View'" @close="closeModal()" :maxWidth="'lg'">
-            <div v-if="selectedJersey" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-white">
-                        <font-awesome-icon icon="fa-solid fa-eye" class="text-indigo-400" />
-                        {{ modal.title.value }}
-                    </h2>
-                    <SecondaryButton @click="closeModal()">
-                        <font-awesome-icon icon="fa-solid fa-xmark" />
-                    </SecondaryButton>
-                </div>
-                <hr class="my-2 border-white/10" />
-                <div class="mt-2 flex items-center gap-3">
+            <div v-if="selectedJersey">
+                <ModalHeader
+                    icon="fa-solid fa-eye"
+                    :title="modal.title.value"
+                    @close="closeModal()"
+                />
+                <div class="px-5 py-5 text-slate-200 space-y-3">
                     <img
                         :src="selectedJersey.image"
                         :alt="selectedJersey.name"
-                        class="mx-auto max-h-80 w-full rounded object-contain bg-slate-950/50 border border-white/10 p-4"
+                        class="mx-auto max-h-80 w-full rounded object-contain bg-white border border-white/10 p-4"
                     />
+                    <p v-if="selectedJersey.description" class="text-sm text-slate-300 leading-relaxed">
+                        {{ selectedJersey.description }}
+                    </p>
+                    <p v-else class="text-xs text-slate-500 italic">No description yet.</p>
                 </div>
             </div>
         </Modal>
 
         <!-- Edit Modal -->
         <Modal :show="modal.type.value === 'Edit'" @close="closeModal()" :maxWidth="'5xl'">
-            <form @submit.prevent="submitEdit" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-edit" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
-                <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300">Jersey Image</label>
-                        <ImageUpload class="mt-1" :image="editImageStyle" @imageFile="onEditImageChange" />
-                        <InputError :message="editForm.errors.image" class="mt-2" />
+            <ModalHeader
+                icon="fa-solid fa-edit"
+                :title="modal.title.value"
+                subtitle="Update catalog listing and sublimation assets"
+                :badge="editForm.status === 'active' ? 'Live in Storefront' : 'Inactive'"
+                :badge-class="editForm.status === 'active'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-slate-700/40 text-slate-300 border-slate-600/40'"
+                @close="closeModal()"
+            />
+            <form @submit.prevent="submitEdit" class="text-slate-200">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 px-5 py-5 max-h-[calc(88vh-140px)] overflow-y-auto">
+                    <!-- Visual -->
+                    <div class="lg:col-span-5 flex flex-col gap-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Jersey Image</span>
+                        <ImageUpload :image="editImageStyle" @imageFile="onEditImageChange" />
+                        <InputError :message="editForm.errors.image" />
                     </div>
 
-                    <div class="flex flex-col gap-4">
-                        <div>
-                            <InputLabel for="name" value="Name" class="!text-slate-300" />
-                            <TextInput v-model="editForm.name" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="name" required />
-                            <InputError :message="editForm.errors.name" class="mt-2" />
+                    <!-- Specifications -->
+                    <div class="lg:col-span-7 flex flex-col gap-4">
+                        <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Template Specifications</span>
+                            <span class="text-[11px] text-slate-400">ID: <strong class="text-slate-300 font-mono">JRS-{{ String(editForm.id).padStart(4, "0") }}</strong></span>
                         </div>
 
                         <div>
-                            <InputLabel for="price" value="Price" class="!text-slate-300" />
-                            <TextInput v-model="editForm.price" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="price" required />
-                            <InputError :message="editForm.errors.price" class="mt-2" />
+                            <InputLabel for="edit-name" value="Template Name" class="!text-slate-300 !text-xs !font-semibold" />
+                            <TextInput v-model="editForm.name" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="edit-name" required />
+                            <InputError :message="editForm.errors.name" class="mt-1.5" />
                         </div>
 
                         <div>
-                            <InputLabel for="badge" value="Badge" class="!text-slate-300" />
-                            <SelectInput v-model="editForm.badge" :options="badgeOptions" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="badge" required />
-                            <InputError :message="editForm.errors.badge" class="mt-2" />
+                            <InputLabel for="edit-description" value="Description" class="!text-slate-300 !text-xs !font-semibold" />
+                            <textarea
+                                id="edit-description"
+                                v-model="editForm.description"
+                                rows="3"
+                                placeholder="A short description shown on the customer-facing catalog card"
+                                class="mt-1.5 block w-full rounded-xl bg-slate-950/70 border border-white/10 text-sm text-slate-100 px-3 py-2.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                            ></textarea>
+                            <InputError :message="editForm.errors.description" class="mt-1.5" />
                         </div>
 
-                        <div>
-                            <InputLabel for="sport" value="Sport" class="!text-slate-300" />
-                            <SelectInput v-model="editForm.sport" :options="sportOptions" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="sport" required />
-                            <InputError :message="editForm.errors.sport" class="mt-2" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="status" value="Status" class="!text-slate-300" />
-                            <SelectInput v-model="editForm.status" :options="jerseyStatus" class="mt-1 block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" id="status" required />
-                            <InputError :message="editForm.errors.status" class="mt-2" />
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                             <div>
-                                <InputLabel for="primary" value="Primary Color" class="!text-slate-300" />
-                                <div class="mt-1 flex items-center gap-1">
-                                    <input type="color" v-model="editForm.primary_color" class="h-10 w-12 rounded border border-white/10 bg-slate-900" id="primary" />
-                                    <TextInput v-model="editForm.primary_color" class="block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" />
+                                <InputLabel for="edit-price" value="Base Price (PHP)" class="!text-slate-300 !text-xs !font-semibold" />
+                                <div class="relative mt-1.5">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm pointer-events-none">₱</span>
+                                    <input
+                                        id="edit-price"
+                                        v-model="editForm.price"
+                                        type="number"
+                                        min="0"
+                                        required
+                                        class="w-full pl-8 pr-3 py-2.5 rounded-xl bg-slate-950/70 border border-white/10 text-sm text-white font-semibold focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                    />
                                 </div>
+                                <InputError :message="editForm.errors.price" class="mt-1.5" />
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-slate-300">Secondary Color</label>
-                                <div class="mt-1 flex items-center gap-1">
-                                    <input type="color" v-model="editForm.secondary_color" class="h-10 w-12 rounded border border-white/10 bg-slate-900" />
-                                    <TextInput v-model="editForm.secondary_color" class="block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" />
-                                </div>
+                                <InputLabel for="edit-status" value="Catalog Status" class="!text-slate-300 !text-xs !font-semibold" />
+                                <SelectInput v-model="editForm.status" :options="jerseyStatus" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="edit-status" required />
+                                <InputError :message="editForm.errors.status" class="mt-1.5" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                                <InputLabel for="edit-badge" value="Commercial Badge" class="!text-slate-300 !text-xs !font-semibold" />
+                                <SelectInput v-model="editForm.badge" :options="badgeOptions" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="edit-badge" required />
+                                <InputError :message="editForm.errors.badge" class="mt-1.5" />
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-slate-300">Accent Color</label>
-                                <div class="mt-1 flex items-center gap-1">
-                                    <input type="color" v-model="editForm.accent_color" class="h-10 w-12 rounded border border-white/10 bg-slate-900" />
-                                    <TextInput v-model="editForm.accent_color" class="block w-full !bg-slate-900/60 !border-white/10 !text-slate-200" />
+                                <InputLabel for="edit-sport" value="Sport / Apparel Type" class="!text-slate-300 !text-xs !font-semibold" />
+                                <SelectInput v-model="editForm.sport" :options="sportOptions" class="mt-1.5 block w-full !rounded-xl !bg-slate-950/70 !border-white/10 !text-slate-100" id="edit-sport" required />
+                                <InputError :message="editForm.errors.sport" class="mt-1.5" />
+                            </div>
+                        </div>
+
+                        <!-- Colorway swatches -->
+                        <div class="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 space-y-2.5">
+                            <span class="text-xs font-bold text-slate-200">Colorway Swatches</span>
+                            <div class="grid grid-cols-3 gap-2.5">
+                                <div class="space-y-1">
+                                    <span class="text-[10px] text-slate-400 block font-medium">Primary</span>
+                                    <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900 border border-white/10 cursor-pointer">
+                                        <input type="color" v-model="editForm.primary_color" class="h-5 w-5 rounded border-0 p-0 bg-transparent shrink-0 cursor-pointer" />
+                                        <input type="text" v-model="editForm.primary_color" class="w-full bg-transparent border-0 p-0 text-[11px] font-mono text-slate-200 focus:ring-0 uppercase font-semibold" />
+                                    </label>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-[10px] text-slate-400 block font-medium">Secondary</span>
+                                    <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900 border border-white/10 cursor-pointer">
+                                        <input type="color" v-model="editForm.secondary_color" class="h-5 w-5 rounded border-0 p-0 bg-transparent shrink-0 cursor-pointer" />
+                                        <input type="text" v-model="editForm.secondary_color" class="w-full bg-transparent border-0 p-0 text-[11px] font-mono text-slate-200 focus:ring-0 uppercase font-semibold" />
+                                    </label>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-[10px] text-slate-400 block font-medium">Accent</span>
+                                    <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900 border border-white/10 cursor-pointer">
+                                        <input type="color" v-model="editForm.accent_color" class="h-5 w-5 rounded border-0 p-0 bg-transparent shrink-0 cursor-pointer" />
+                                        <input type="text" v-model="editForm.accent_color" class="w-full bg-transparent border-0 p-0 text-[11px] font-mono text-slate-200 focus:ring-0 uppercase font-semibold" />
+                                    </label>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <hr class="mt-4 border-white/10" />
-                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="px-5 py-4 border-t border-white/10 bg-black/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div v-if="selectedJerseyMeta" class="flex items-center gap-2 text-xs text-slate-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Last updated <strong class="text-slate-300 font-medium">{{ formatDate(selectedJerseyMeta.updated_at) }}</strong></span>
+                    </div>
+                    <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                        <button
+                            type="button"
+                            class="px-3.5 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-500/20"
+                            @click="openDeleteModal()"
+                        >
+                            Delete
+                        </button>
+                        <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
+
+                        <PrimaryButton
+                            type="submit"
+                            class="flex items-center justify-center gap-1"
+                            :disabled="editForm.processing"
+                            :class="{ 'opacity-25': editForm.processing }"
+                        >
+                            <div class="text-sm" v-if="editForm.processing">
+                                <font-awesome-icon icon="fa-solid fa-spinner" spin />
+                            </div>
+                            Save
+                            <font-awesome-icon icon="fa-solid fa-circle-down" />
+                        </PrimaryButton>
+                    </div>
+                </div>
+            </form>
+        </Modal>
+
+        <!-- Delete Modal -->
+        <Modal :show="modal.type.value === 'Delete'" @close="closeModal()" :maxWidth="'sm'">
+            <ModalHeader
+                icon="fa-solid fa-trash"
+                icon-class="text-rose-400 bg-rose-500/15 border-rose-500/25"
+                title="Delete Jersey Template"
+                @close="closeModal()"
+            />
+            <div class="px-5 py-5 text-slate-200">
+                <p class="text-sm text-slate-400">
+                    Are you sure you want to delete
+                    <span class="font-semibold text-white">{{ selectedJerseyMeta?.name }}</span>? This removes it from the storefront catalog and cannot be undone.
+                </p>
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
-                        type="submit"
-                        class="flex items-center justify-center gap-1"
-                        :disabled="editForm.processing"
-                        :class="{ 'opacity-25': editForm.processing }"
+                        type="button"
+                        class="flex items-center justify-center gap-1 !bg-rose-600 hover:!bg-rose-500"
+                        :disabled="deleteForm.processing"
+                        :class="{ 'opacity-25': deleteForm.processing }"
+                        @click="submitDelete"
                     >
-                        <div class="text-sm" v-if="editForm.processing">
+                        <div class="text-sm" v-if="deleteForm.processing">
                             <font-awesome-icon icon="fa-solid fa-spinner" spin />
                         </div>
-                        Save
-                        <font-awesome-icon icon="fa-solid fa-circle-down" />
+                        Delete
+                        <font-awesome-icon icon="fa-solid fa-trash" />
                     </PrimaryButton>
                 </div>
-            </form>
+            </div>
         </Modal>
 
         <!-- Rate Limit Modal -->

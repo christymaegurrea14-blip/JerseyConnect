@@ -31,14 +31,14 @@ const submit = () => {
     <GuestLayout>
         <Head title="Reset Password" />
 
-        <form @submit.prevent="submit">
+        <form @submit.prevent="submit" class="p-6 sm:p-8">
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="Email" class="!text-slate-300" />
 
                 <TextInput
                     id="email"
                     type="email"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full !bg-slate-950/70 !border-white/10 !text-slate-100"
                     v-model="form.email"
                     required
                     autofocus
@@ -49,12 +49,12 @@ const submit = () => {
             </div>
 
             <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+                <InputLabel for="password" value="Password" class="!text-slate-300" />
 
                 <TextInput
                     id="password"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full !bg-slate-950/70 !border-white/10 !text-slate-100"
                     v-model="form.password"
                     required
                     autocomplete="new-password"
@@ -67,12 +67,13 @@ const submit = () => {
                 <InputLabel
                     for="password_confirmation"
                     value="Confirm Password"
+                    class="!text-slate-300"
                 />
 
                 <TextInput
                     id="password_confirmation"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full !bg-slate-950/70 !border-white/10 !text-slate-100"
                     v-model="form.password_confirmation"
                     required
                     autocomplete="new-password"

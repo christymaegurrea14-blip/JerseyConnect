@@ -14,6 +14,12 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    // Admin pages use the dark "surface" theme; client-portal pages are
+    // light, so they pass :dark="false" to get a matching light box.
+    dark: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const emit = defineEmits(["close"]);
@@ -98,7 +104,7 @@ const maxWidthClass = computed(() => {
                     class="fixed inset-0 transform transition-all"
                     @click="close"
                 >
-                    <div class="absolute inset-0 bg-gray-500 opacity-75" />
+                    <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" />
                 </div>
             </Transition>
 
@@ -112,9 +118,18 @@ const maxWidthClass = computed(() => {
             >
                 <div
                     v-show="show"
-                    class="mb-6 max-h-[85vh] w-full transform overflow-y-auto rounded-lg bg-white shadow-xl transition-all sm:mx-auto"
-                    :class="maxWidthClass"
+                    class="relative mb-6 max-h-[85vh] w-full transform overflow-y-auto rounded-2xl shadow-2xl transition-all sm:mx-auto"
+                    :class="[
+                        maxWidthClass,
+                        dark
+                            ? 'admin-scrollbar border border-white/10 bg-surface-card shadow-black/60'
+                            : 'client-scrollbar border border-ink/10 bg-white shadow-ink/10',
+                    ]"
                 >
+                    <div
+                        class="absolute inset-x-0 top-0 h-[3px] rounded-t-2xl bg-gradient-to-r"
+                        :class="dark ? 'from-indigo-500 via-violet-500 to-cyan-400' : 'from-cobalt via-cobalt to-accent'"
+                    />
                     <slot v-if="showSlot" />
                 </div>
             </Transition>

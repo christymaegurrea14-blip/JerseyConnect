@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
@@ -77,6 +78,11 @@ class DesignRequest extends Model
     public function messageThread(): HasOne
     {
         return $this->hasOne(MessageThread::class);
+    }
+
+    public function players(): HasMany
+    {
+        return $this->hasMany(DesignRequestPlayer::class)->orderBy('number');
     }
 
     protected static function booted(): void

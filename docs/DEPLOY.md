@@ -5,7 +5,8 @@ No queue jobs and no scheduled tasks currently exist, so this checklist skips
 worker/cron setup beyond what's needed if you add them later.
 
 ## 0. Requirements
-- Hostinger Business/Cloud (or VPS) plan — need SSH access + PHP 8.3.
+- Hostinger Premium/Business/Cloud (or VPS) plan — need SSH access + PHP 8.3.
+  (Single plan does NOT include SSH — not usable for this.)
 - In hPanel → Advanced → PHP Configuration: set PHP to **8.3**.
 - In hPanel → Advanced → SSH Access: enable it, note host/port/credentials.
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import Modal from "@/Components/Modal.vue";
+import ModalHeader from "@/Components/ModalHeader.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import TextInput from "@/Components/TextInput.vue";
@@ -10,7 +11,7 @@ import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
 import { useModal } from "@/Composables/useModal";
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 type CourierStatus = "active" | "inactive";
 
@@ -21,11 +22,22 @@ interface Courier {
     status: CourierStatus;
     created_at: string;
     updated_at: string;
+    courier_receipts_count: number;
+}
+
+interface CourierStats {
+    total_waybills: number;
+    total_shipping_fees: number;
 }
 
 const props = defineProps<{
     couriers: Courier[];
+    stats: CourierStats;
 }>();
+
+function formatCurrency(value: number) {
+    return `₱${value.toLocaleString("en-PH")}`;
+}
 
 const activeCount = computed(
     () => props.couriers.filter((c) => c.status === "active").length,
@@ -49,6 +61,96 @@ const statusOptions = [
     { value: "active", label: "Active" },
     { value: "inactive", label: "Inactive" },
 ];
+
+const badgePalette = [
+    "from-indigo-500/30 to-violet-500/20 border-indigo-500/30 text-indigo-300",
+    "from-cyan-500/30 to-blue-500/20 border-cyan-500/30 text-cyan-300",
+    "from-amber-500/30 to-orange-500/20 border-amber-500/30 text-amber-300",
+    "from-emerald-500/30 to-teal-500/20 border-emerald-500/30 text-emerald-300",
+    "from-rose-500/30 to-pink-500/20 border-rose-500/30 text-rose-300",
+];
+
+function courierBadgeClass(name: string) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    return badgePalette[hash % badgePalette.length];
+}
+
+function courierInitials(name: string) {
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+    return words.slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+}
+
+/* ---------------- FILTERING ---------------- */
+
+const searchQuery = ref("");
+const dateFrom = ref("");
+const dateTo = ref("");
+const statusFilter = ref<"all" | CourierStatus>("all");
+const perPage = ref(10);
+const perPageOptions = [5, 10, 25, 50];
+const currentPage = ref(1);
+
+const filteredCouriers = computed(() => {
+    let list = props.couriers;
+
+    if (statusFilter.value !== "all") {
+        list = list.filter((c) => c.status === statusFilter.value);
+    }
+    if (dateFrom.value) {
+        const from = new Date(dateFrom.value);
+        list = list.filter((c) => new Date(c.created_at) >= from);
+    }
+    if (dateTo.value) {
+        const to = new Date(dateTo.value);
+        to.setHours(23, 59, 59, 999);
+        list = list.filter((c) => new Date(c.created_at) <= to);
+    }
+
+    const q = searchQuery.value.trim().toLowerCase();
+    if (q) {
+        list = list.filter(
+            (c) =>
+                c.name.toLowerCase().includes(q) ||
+                (c.site ?? "").toLowerCase().includes(q),
+        );
+    }
+    return list;
+});
+
+watch([dateFrom, dateTo, searchQuery, statusFilter, perPage], () => {
+    currentPage.value = 1;
+});
+
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(filteredCouriers.value.length / perPage.value)),
+);
+
+const paginatedCouriers = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    return filteredCouriers.value.slice(start, start + perPage.value);
+});
+
+const rangeStart = computed(() =>
+    filteredCouriers.value.length === 0
+        ? 0
+        : (currentPage.value - 1) * perPage.value + 1,
+);
+const rangeEnd = computed(() =>
+    Math.min(currentPage.value * perPage.value, filteredCouriers.value.length),
+);
+
+function clearFilters() {
+    dateFrom.value = "";
+    dateTo.value = "";
+    searchQuery.value = "";
+    statusFilter.value = "all";
+}
+
+const hasActiveFilters = computed(
+    () => !!dateFrom.value || !!dateTo.value || !!searchQuery.value.trim() || statusFilter.value !== "all",
+);
 
 const modal = useModal();
 
@@ -162,12 +264,17 @@ function submitDelete() {
     <AdminLayout>
         <div class="space-y-6">
             <!-- Header -->
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex flex-col gap-1">
-                    <h1 class="text-2xl font-extrabold text-white tracking-tight">Couriers</h1>
-                    <p class="text-sm text-slate-400">
-                        {{ props.couriers.length }} courier{{ props.couriers.length === 1 ? "" : "s" }} total
-                    </p>
+            <div v-reveal class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                        <font-awesome-icon icon="fa-solid fa-truck-fast" />
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-2xl font-extrabold text-white tracking-tight">Couriers</h1>
+                        <p class="text-sm text-slate-400">
+                            {{ props.couriers.length }} courier{{ props.couriers.length === 1 ? "" : "s" }} registered for delivery
+                        </p>
+                    </div>
                 </div>
                 <PrimaryButton class="flex items-center justify-center gap-1.5 w-full sm:w-auto" @click="openAddModal">
                     <font-awesome-icon icon="fa-solid fa-plus-circle" />
@@ -176,23 +283,124 @@ function submitDelete() {
             </div>
 
             <!-- Stat cards -->
-            <div class="grid grid-cols-3 gap-3.5">
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Total couriers</span>
-                    <div class="text-2xl font-bold text-white mt-1.5">{{ props.couriers.length }}</div>
+            <div v-reveal="80" class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div v-reveal="0" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Total couriers</span>
+                        <span class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <font-awesome-icon icon="fa-solid fa-truck" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-white mt-3">{{ props.couriers.length }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Active</span>
-                    <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ activeCount }}</div>
+                <div v-reveal="70" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Active</span>
+                        <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <font-awesome-icon icon="fa-solid fa-circle-check" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-emerald-300 mt-3">{{ activeCount }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Inactive</span>
-                    <div class="text-2xl font-bold text-rose-300 mt-1.5">{{ inactiveCount }}</div>
+                <div v-reveal="140" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-rose-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-rose-500/5 rounded-full blur-xl group-hover:bg-rose-400/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Inactive</span>
+                        <span class="p-1.5 rounded-lg bg-slate-800/80 text-rose-400/70 border border-white/5">
+                            <font-awesome-icon icon="fa-solid fa-xmark-circle" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-rose-400 mt-3">{{ inactiveCount }}</div>
+                </div>
+                <div v-reveal="210" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-400/20 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Waybills dispatched</span>
+                        <span class="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            <font-awesome-icon icon="fa-solid fa-box" class="text-xs" />
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold text-cyan-300 mt-3">{{ stats.total_waybills }}</div>
+                    <p class="text-[11px] text-slate-500 mt-1">{{ formatCurrency(stats.total_shipping_fees) }} in shipping fees</p>
+                </div>
+            </div>
+
+            <!-- Filter toolbar -->
+            <div v-reveal="140" class="glass-panel rounded-2xl p-4 space-y-3">
+                <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                    <div class="relative w-full lg:w-96">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                            <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
+                        </span>
+                        <input
+                            v-model="searchQuery"
+                            type="text"
+                            placeholder="Search couriers by name or site..."
+                            class="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-950/60 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <div class="flex items-center gap-1.5 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="text-slate-500 font-medium">From</span>
+                            <input v-model="dateFrom" type="date" class="bg-transparent border-none p-0 text-xs text-slate-200 focus:ring-0" />
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="text-slate-500 font-medium">To</span>
+                            <input v-model="dateTo" type="date" class="bg-transparent border-none p-0 text-xs text-slate-200 focus:ring-0" />
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="text-slate-500">Show</span>
+                            <select v-model.number="perPage" class="bg-transparent border-none text-xs text-indigo-400 font-bold focus:ring-0 p-0 pr-1 cursor-pointer">
+                                <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
+                            </select>
+                        </div>
+                        <button
+                            v-if="hasActiveFilters"
+                            type="button"
+                            @click="clearFilters"
+                            class="flex items-center gap-1.5 text-xs font-medium text-rose-300 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl px-2.5 py-2 transition-colors"
+                        >
+                            <font-awesome-icon icon="fa-solid fa-xmark" />
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1 bg-slate-950/60 border border-white/5 p-1 rounded-xl w-fit">
+                    <button
+                        type="button"
+                        @click="statusFilter = 'all'"
+                        class="px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+                        :class="statusFilter === 'all' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    >
+                        All ({{ props.couriers.length }})
+                    </button>
+                    <button
+                        type="button"
+                        @click="statusFilter = 'active'"
+                        class="px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                        :class="statusFilter === 'active' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        Active ({{ activeCount }})
+                    </button>
+                    <button
+                        type="button"
+                        @click="statusFilter = 'inactive'"
+                        class="px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                        :class="statusFilter === 'inactive' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                        Inactive ({{ inactiveCount }})
+                    </button>
                 </div>
             </div>
 
             <!-- Table -->
-            <div class="glass-panel rounded-2xl overflow-hidden">
+            <div v-reveal="200" class="glass-panel rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -200,30 +408,51 @@ function submitDelete() {
                                 <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Courier</th>
                                 <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Site</th>
                                 <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Waybills</th>
                                 <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Created</th>
                                 <th class="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/5">
-                            <tr v-if="props.couriers.length === 0">
-                                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-500">No couriers yet.</td>
+                            <tr v-if="filteredCouriers.length === 0">
+                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No couriers found.</td>
                             </tr>
                             <tr
-                                v-for="row in props.couriers"
+                                v-for="row in paginatedCouriers"
                                 :key="row.id"
-                                class="hover:bg-slate-800/30 transition-colors"
+                                class="hover:bg-slate-800/30 transition-colors group"
                             >
-                                <td class="px-4 py-3 font-semibold text-white">{{ row.name }}</td>
                                 <td class="px-4 py-3">
-                                    <a v-if="row.site" :href="row.site" target="_blank" class="text-indigo-400 hover:text-indigo-300">
-                                        <font-awesome-icon icon="fa-solid fa-link" />
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-9 h-9 rounded-xl bg-gradient-to-tr border flex items-center justify-center font-bold text-[11px] shrink-0"
+                                            :class="courierBadgeClass(row.name)"
+                                        >
+                                            {{ courierInitials(row.name) }}
+                                        </div>
+                                        <span class="font-semibold text-white group-hover:text-indigo-300 transition-colors">{{ row.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <a v-if="row.site" :href="row.site" target="_blank" class="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300">
+                                        <font-awesome-icon icon="fa-solid fa-link" class="text-xs" />
                                         Visit site
                                     </a>
                                     <span v-else class="text-slate-600">—</span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="inline-block rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="courierStatus[row.status].class">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border" :class="courierStatus[row.status].class">
+                                        <span
+                                            class="w-1.5 h-1.5 rounded-full"
+                                            :class="row.status === 'active' ? 'bg-emerald-400' : 'bg-rose-400'"
+                                        ></span>
                                         {{ courierStatus[row.status].label }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                                        <font-awesome-icon icon="fa-solid fa-box" class="text-cyan-400 text-[10px]" />
+                                        {{ row.courier_receipts_count }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-slate-400">{{ formatDate(row.created_at) }}</td>
@@ -250,16 +479,46 @@ function submitDelete() {
                     </table>
                 </div>
             </div>
+
+            <!-- Pagination -->
+            <div v-if="filteredCouriers.length > 0" class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p class="text-xs text-slate-500">
+                    Showing <span class="text-slate-300 font-medium">{{ rangeStart }}–{{ rangeEnd }}</span>
+                    of <span class="text-slate-300 font-medium">{{ filteredCouriers.length }}</span> couriers
+                </p>
+                <div class="flex items-center gap-1">
+                    <button
+                        type="button"
+                        @click="currentPage--"
+                        :disabled="currentPage === 1"
+                        class="px-2.5 py-1.5 rounded-lg border text-xs transition-colors"
+                        :class="currentPage === 1 ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-white/10 text-slate-300 hover:bg-slate-800/60'"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-chevron-left" />
+                    </button>
+                    <span class="px-3 py-1.5 text-xs text-slate-300">Page {{ currentPage }} of {{ totalPages }}</span>
+                    <button
+                        type="button"
+                        @click="currentPage++"
+                        :disabled="currentPage === totalPages"
+                        class="px-2.5 py-1.5 rounded-lg border text-xs transition-colors"
+                        :class="currentPage === totalPages ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-white/10 text-slate-300 hover:bg-slate-800/60'"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-chevron-right" />
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Add Modal -->
         <Modal :show="modal.type.value === 'Add'" @close="closeModal()" :maxWidth="'md'">
-            <form @submit.prevent="submitAdd" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-plus-circle" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
+            <ModalHeader
+                icon="fa-solid fa-plus-circle"
+                :title="modal.title.value"
+                subtitle="Register a new delivery partner"
+                @close="closeModal()"
+            />
+            <form @submit.prevent="submitAdd" class="px-5 py-5 text-slate-200">
                 <div class="flex flex-col gap-4">
                     <div>
                         <InputLabel for="name" value="Name" class="!text-slate-300" />
@@ -273,8 +532,7 @@ function submitDelete() {
                         <InputError :message="addForm.errors.site" class="mt-2" />
                     </div>
                 </div>
-                <hr class="mt-4 border-white/10" />
-                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
@@ -295,13 +553,13 @@ function submitDelete() {
 
         <!-- Edit Modal -->
         <Modal :show="modal.type.value === 'Edit'" @close="closeModal()" :maxWidth="'md'">
-            <form @submit.prevent="submitEdit" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-edit" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
-
+            <ModalHeader
+                icon="fa-solid fa-edit"
+                :title="modal.title.value"
+                subtitle="Update delivery partner details"
+                @close="closeModal()"
+            />
+            <form @submit.prevent="submitEdit" class="px-5 py-5 text-slate-200">
                 <div class="flex flex-col gap-4">
                     <div>
                         <InputLabel for="edit-name" value="Name" class="!text-slate-300" />
@@ -322,8 +580,7 @@ function submitDelete() {
                     </div>
                 </div>
 
-                <hr class="mt-4 border-white/10" />
-                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton
@@ -343,21 +600,20 @@ function submitDelete() {
 
         <!-- Delete Modal -->
         <Modal :show="modal.type.value === 'Delete'" @close="closeModal()" :maxWidth="'md'">
-            <div class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-trash" class="text-rose-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
-
+            <ModalHeader
+                icon="fa-solid fa-trash"
+                icon-class="text-rose-400 bg-rose-500/15 border-rose-500/25"
+                :title="modal.title.value"
+                @close="closeModal()"
+            />
+            <div class="px-5 py-5 text-slate-200">
                 <p class="text-sm text-slate-400">
                     Are you sure you want to delete
                     <span class="font-semibold text-white">{{ courierToDelete?.name }}</span>? This action cannot be undone.
                 </p>
 
-                <hr class="mt-4 border-white/10" />
                 <InputError :message="deleteForm.errors.courier" class="mt-2" />
-                <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">Cancel</SecondaryButton>
 
                     <PrimaryButton

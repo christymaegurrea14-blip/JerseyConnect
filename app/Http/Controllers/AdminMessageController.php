@@ -12,7 +12,12 @@ class AdminMessageController extends Controller
 {
     public function index(Request $request)
     {
-        $threads = MessageThread::with(['designRequest.user.userInfo', 'designRequest.order', 'messages.user.userInfo'])
+        $threads = MessageThread::with([
+                'designRequest.user.userInfo',
+                'designRequest.order',
+                'designRequest.players',
+                'messages.user.userInfo',
+            ])
             ->get();
 
         return Inertia::render('Admin/Messages', [

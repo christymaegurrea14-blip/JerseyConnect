@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\DesignRequest;
 use App\Models\MessageThread;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -37,6 +38,18 @@ class HandleInertiaRequests extends Middleware
             ],
             'unreadMessagesCount' => Inertia::always(
                 fn () => $this->unreadMessagesCount($request)
+            ),
+            'pendingDesignRequestsCount' => Inertia::always(
+                fn () => $request->user()?->role === 'admin'
+                    ? DesignRequest::where('status', 'pending_review')->count()
+                    : 0
+            ),
+            'pendingGcashCount' => Inertia::always(
+                fn () => $request->user()?->role === 'admin'
+                    ? DesignRequest::where('status', 'pending_down_payment_review')
+                        ->whereNotNull('proof_image')
+                        ->count()
+                    : 0
             ),
         ]);
     }

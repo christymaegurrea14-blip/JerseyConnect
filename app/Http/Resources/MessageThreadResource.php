@@ -48,6 +48,14 @@ class MessageThreadResource extends JsonResource
             || $lastMessage->user_id === $viewer->id
             || ($lastReadAt && $lastReadAt->gte($lastMessage->created_at));
 
+        $players = $designRequest->players->map(fn($player) => [
+            'id' => $player->id,
+            'name' => $player->name,
+            'number' => $player->number,
+            'position' => $player->position,
+            'size' => $player->size,
+        ]);
+
         return [
             'id' => $this->id,
             'design_request_id' => $designRequest->id,
@@ -69,6 +77,16 @@ class MessageThreadResource extends JsonResource
             'updated_at' => $lastMessage?->created_at ?? $this->updated_at,
             'closed' => $stage === 'order' && $order->status === 'completed',
             'messages' => MessageResource::collection($this->messages),
+
+            // Real order-spec data for the context panel — nothing here is
+            // fabricated; it's a straight read of the design request/order.
+            'unit_price' => $order->unit_price ?? $designRequest->template_price,
+            'quantity' => $order->quantity ?? $designRequest->estimated_quantity,
+            'primary_color' => $order->primary_color ?? $designRequest->primary_color,
+            'secondary_color' => $order->secondary_color ?? $designRequest->secondary_color,
+            'accent_color' => $order->accent_color ?? $designRequest->accent_color,
+            'font_style' => $order->font_style ?? $designRequest->font_style,
+            'players' => $players,
         ];
     }
 }

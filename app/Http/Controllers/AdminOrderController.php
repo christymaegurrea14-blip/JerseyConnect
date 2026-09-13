@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Courier;
 use App\Models\Order;
+use App\Notifications\OrderStatusUpdated;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,7 +15,7 @@ class AdminOrderController extends Controller
     public function index(): Response
     {
         $orders = Order::query()
-            ->with(['address', 'courierReceipt.courier'])
+            ->with(['address', 'courierReceipt.courier', 'designRequest.players'])
             ->latest()
             ->get()
             ->map(fn(Order $order) => $this->transform($order));
@@ -24,6 +25,20 @@ class AdminOrderController extends Controller
         return Inertia::render('Admin/Orders', [
             'orders' => $orders,
             'couriers' => Courier::where('status', true)->get(['id', 'name', 'site']),
+        ]);
+    }
+
+    /**
+     * A print-friendly packing slip: real roster + order/delivery info only,
+     * meant to go inside the jersey package alongside the printed order.
+     */
+    public function packingSlip(Order $order)
+    {
+        $order->load(['address', 'designRequest.players']);
+
+        return view('admin.orders.packing-slip', [
+            'order' => $order,
+            'players' => $order->designRequest?->players ?? collect(),
         ]);
     }
 
@@ -58,6 +73,8 @@ class AdminOrderController extends Controller
             $order->update(['shipping_fee' => $validated['shipping_fee']]);
         }
 
+        $order->refresh()->load('courierReceipt.courier')->user->notify(new OrderStatusUpdated($order));
+
         return redirect()->back()->with('success', 'Order status updated.');
     }
 
@@ -84,6 +101,7 @@ class AdminOrderController extends Controller
             'template_image' => $order->template_image_url,
             'address' => $order->address,
             'courier_receipt' => $order->courierReceipt,
+            'players' => $order->designRequest?->players ?? [],
         ];
     }
 }

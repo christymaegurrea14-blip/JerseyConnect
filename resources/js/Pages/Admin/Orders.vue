@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import Modal from "@/Components/Modal.vue";
+import ModalHeader from "@/Components/ModalHeader.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import type { Order, OrderStatus, CourierReceipt } from "@/types/orders.ts";
@@ -61,6 +62,13 @@ const statusFilters: { label: string; value: OrderStatus | "All" }[] = [
 
 const activeStatus = ref<OrderStatus | "All">("All");
 const searchQuery = ref("");
+
+// "Processing" orders haven't been moved into production yet — surface a
+// dot on that pill so new orders needing action are easy to spot.
+function needsAttentionDot(value: OrderStatus | "All") {
+    if (value !== "processing") return false;
+    return statusCounts.value.processing > 0;
+}
 
 const statusBadge: Record<OrderStatus, { label: string; class: string }> = {
     processing: {
@@ -272,7 +280,7 @@ function formatDate(value: string) {
     <AdminLayout>
         <div class="space-y-6">
             <!-- Header -->
-            <div class="flex flex-col gap-1">
+            <div v-reveal class="flex flex-col gap-1">
                 <h1 class="text-2xl font-extrabold text-white tracking-tight">Orders</h1>
                 <p class="text-sm text-slate-400">
                     {{ orders.length }} order{{ orders.length === 1 ? "" : "s" }} total ·
@@ -281,33 +289,33 @@ function formatDate(value: string) {
             </div>
 
             <!-- Stat cards (derived from real order data) -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-                <div class="glass-panel rounded-xl p-4">
+            <div v-reveal="80" class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div v-reveal="0" class="glass-panel rounded-xl p-4">
                     <span class="text-xs font-medium text-slate-400">Active orders</span>
                     <div class="text-2xl font-bold text-white mt-1.5">{{ activeOrdersCount }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
+                <div v-reveal="70" class="glass-panel rounded-xl p-4">
                     <span class="text-xs font-medium text-slate-400">In production</span>
                     <div class="text-2xl font-bold text-indigo-300 mt-1.5">{{ statusCounts.in_production }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
+                <div v-reveal="140" class="glass-panel rounded-xl p-4">
                     <span class="text-xs font-medium text-slate-400">Awaiting shipment</span>
                     <div class="text-2xl font-bold text-cyan-300 mt-1.5">{{ statusCounts.ready_for_delivery }}</div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
+                <div v-reveal="210" class="glass-panel rounded-xl p-4">
                     <span class="text-xs font-medium text-slate-400">Completed</span>
                     <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ statusCounts.completed }}</div>
                 </div>
             </div>
 
             <!-- Filters -->
-            <div class="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+            <div v-reveal="140" class="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
                 <div class="flex flex-wrap gap-1.5 p-1.5 rounded-xl bg-slate-900/60 border border-white/5">
                     <button
                         v-for="filter in statusFilters"
                         :key="filter.value"
                         type="button"
-                        class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+                        class="relative rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1.5"
                         :class="
                             activeStatus === filter.value
                                 ? 'bg-indigo-600 text-white shadow-sm'
@@ -315,6 +323,11 @@ function formatDate(value: string) {
                         "
                         @click="activeStatus = filter.value"
                     >
+                        <span
+                            v-if="needsAttentionDot(filter.value)"
+                            class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"
+                            title="Needs your attention"
+                        ></span>
                         {{ filter.label }}
                     </button>
                 </div>
@@ -383,7 +396,7 @@ function formatDate(value: string) {
             </div>
 
             <!-- Table -->
-            <div class="glass-panel rounded-2xl overflow-hidden">
+            <div v-reveal="200" class="glass-panel rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -415,7 +428,7 @@ function formatDate(value: string) {
                                         <img
                                             :src="row.template_image"
                                             :alt="row.template_name"
-                                            class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-slate-900 border border-white/10 p-1"
+                                            class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-white border border-white/10 p-1"
                                         />
                                         <div class="flex flex-col">
                                             <span class="font-semibold text-white">{{ row.team_name }}</span>
@@ -543,26 +556,19 @@ function formatDate(value: string) {
 
         <!-- View Order Modal -->
         <Modal :show="modal.type.value === 'View'" @close="closeModal" :maxWidth="'5xl'">
-            <div
-                v-if="selectedOrder"
-                class="overflow-y-auto max-h-[90vh] px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200"
-            >
-                <div class="flex items-center justify-between gap-2">
-                    <h2 class="text-base sm:text-lg font-semibold text-white truncate">
-                        <font-awesome-icon :icon="modal.icon.value" class="text-indigo-400" />
-                        {{ modal.title.value }} — {{ selectedOrder.order_number }}
-                    </h2>
-                    <SecondaryButton @click="closeModal" class="flex-shrink-0">
-                        <font-awesome-icon icon="fa-solid fa-xmark" />
-                    </SecondaryButton>
-                </div>
-                <hr class="my-3 border-white/10" />
-
+            <div v-if="selectedOrder" class="overflow-y-auto max-h-[90vh]">
+                <ModalHeader
+                    :icon="modal.icon.value"
+                    :title="`${modal.title.value} — ${selectedOrder.order_number}`"
+                    :subtitle="selectedOrder.team_name"
+                    @close="closeModal"
+                />
+                <div class="px-5 py-5 text-slate-200">
                 <div class="flex flex-col gap-4 sm:flex-row">
                     <!-- Jersey preview -->
                     <div class="flex flex-col gap-3 border border-white/10 px-3 py-3 rounded-xl w-full sm:w-1/3 bg-slate-900/40">
                         <p class="text-sm font-bold text-white text-center">{{ selectedOrder.template_name }}</p>
-                        <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
+                        <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white">
                             <img
                                 :src="selectedOrder.template_image"
                                 :alt="selectedOrder.template_name"
@@ -620,6 +626,43 @@ function formatDate(value: string) {
                         </div>
 
                         <div class="border border-white/10 rounded-xl p-3 bg-slate-900/40">
+                            <p class="text-sm font-bold text-white mb-2 flex items-center justify-between">
+                                <span>
+                                    <font-awesome-icon icon="fa-solid fa-users" class="text-indigo-400" />
+                                    Team Roster
+                                </span>
+                                <span class="text-xs font-normal text-slate-400">
+                                    {{ selectedOrder.players?.length ?? 0 }} player{{ (selectedOrder.players?.length ?? 0) === 1 ? "" : "s" }}
+                                </span>
+                            </p>
+                            <a
+                                :href="route('admin.orders.packing-slip', selectedOrder.id)"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1.5 mb-2.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300"
+                            >
+                                <font-awesome-icon icon="fa-solid fa-print" />
+                                Print Packing List
+                            </a>
+                            <div v-if="selectedOrder.players?.length" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                                <div
+                                    v-for="p in selectedOrder.players"
+                                    :key="p.id"
+                                    class="flex items-center gap-2.5 p-2 rounded-lg bg-slate-950/40 border border-white/5"
+                                >
+                                    <div class="w-7 h-7 rounded-full bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[11px] font-bold shrink-0">
+                                        {{ p.number ?? "—" }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-xs font-semibold text-white truncate">{{ p.name }}</p>
+                                        <p class="text-[11px] text-slate-400">{{ [p.position, p.size].filter(Boolean).join(" • ") || "—" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p v-else class="text-xs text-slate-500">No roster submitted yet.</p>
+                        </div>
+
+                        <div class="border border-white/10 rounded-xl p-3 bg-slate-900/40">
                             <p class="text-sm font-bold text-white mb-2">
                                 <font-awesome-icon icon="fa-solid fa-truck" class="text-indigo-400" />
                                 Shipping Status
@@ -666,18 +709,20 @@ function formatDate(value: string) {
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         </Modal>
 
         <!-- Update Status / Courier Receipt Modal -->
         <Modal :show="modal.type.value === 'UpdateStatus'" @close="closeModal" :maxWidth="'md'">
-            <div v-if="selectedOrder" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon :icon="modal.icon.value" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <p class="mt-1 text-xs text-slate-500">{{ selectedOrder.order_number }} — {{ selectedOrder.team_name }}</p>
-                <hr class="my-3 border-white/10" />
+            <div v-if="selectedOrder">
+                <ModalHeader
+                    :icon="modal.icon.value"
+                    :title="modal.title.value"
+                    :subtitle="`${selectedOrder.order_number} — ${selectedOrder.team_name}`"
+                    @close="closeModal"
+                />
+                <div class="px-5 py-5 text-slate-200">
 
                 <label class="block text-sm font-medium text-slate-300 mb-1">Move to</label>
                 <select
@@ -766,6 +811,7 @@ function formatDate(value: string) {
                         </div>
                         Save
                     </PrimaryButton>
+                </div>
                 </div>
             </div>
         </Modal>

@@ -1,3 +1,57 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Loading indicator for Inertia navigation (see the `progress` option in
+   resources/js/app.ts) — a thin brand-colored bar sweeps across the top of
+   the screen while a page loads; the current page stays fully visible the
+   whole time instead of blanking out. Inertia injects its own #nprogress
+   .bar rule (color + glow) at runtime; this just makes the bar a bit more
+   visible on top of it. */
+#nprogress .bar {
+    height: 3px !important;
+}
+
+/* Scroll-reveal (see resources/js/directives/reveal.ts) */
+.reveal {
+    opacity: 0;
+    transform: translateY(44px) scale(0.97);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+.reveal-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+    /* Keep the fade (that's the actual content reveal), drop the travel
+       distance and scale so nothing large moves across the screen. */
+    .reveal {
+        transform: none;
+        transition: opacity 0.5s ease;
+    }
+    .reveal-visible {
+        transform: none;
+    }
+}
+
+/* Light-theme counterpart to AdminLayout's .admin-scrollbar, used by
+   Modal.vue's client-portal (dark="false") box. */
+.client-scrollbar ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.client-scrollbar ::-webkit-scrollbar-track {
+    background: transparent;
+}
+.client-scrollbar ::-webkit-scrollbar-thumb {
+    background: rgba(11, 18, 32, 0.15);
+    border-radius: 9999px;
+}
+.client-scrollbar ::-webkit-scrollbar-thumb:hover {
+    background: rgba(11, 18, 32, 0.3);
+}
+.client-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(11, 18, 32, 0.15) transparent;
+}

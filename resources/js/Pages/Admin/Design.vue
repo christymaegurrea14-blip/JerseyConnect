@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import Modal from "@/Components/Modal.vue";
+import ModalHeader from "@/Components/ModalHeader.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import DangerButton from "@/Components/DangerButton.vue";
@@ -40,6 +41,18 @@ const statusFilters: { label: string; value: DesignRequestStatus | "All" }[] = [
 
 const activeStatus = ref<DesignRequestStatus | "All">("All");
 const searchQuery = ref("");
+
+// Statuses that mean "an admin needs to act on this" — surfaced as a dot on
+// the matching filter pill so pending work is easy to spot at a glance.
+const needsAttentionStatuses = new Set<DesignRequestStatus>([
+    "pending_review",
+    "pending_down_payment_review",
+]);
+
+function needsAttentionDot(value: DesignRequestStatus | "All") {
+    if (value === "All" || !needsAttentionStatuses.has(value)) return false;
+    return (statusCounts.value[value] ?? 0) > 0;
+}
 
 const statusBadge: Record<
     DesignRequestStatus,
@@ -330,7 +343,7 @@ function submitEdit() {
     <AdminLayout>
         <div class="space-y-6">
             <!-- Header -->
-            <div class="flex flex-col gap-1">
+            <div v-reveal class="flex flex-col gap-1">
                 <h1 class="text-2xl font-extrabold text-white tracking-tight">Design Requests</h1>
                 <p class="text-sm text-slate-400">
                     {{ requests.length }} request{{ requests.length === 1 ? "" : "s" }} total
@@ -338,92 +351,126 @@ function submitEdit() {
             </div>
 
             <!-- Stat cards (derived from real data) -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Pending review</span>
-                    <div class="text-2xl font-bold text-amber-300 mt-1.5">{{ statusCounts.pending_review }}</div>
+            <div v-reveal="80" class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div v-reveal="0" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-amber-500/30 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-500/5 rounded-full blur-xl group-hover:bg-amber-500/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Pending review</span>
+                        <span class="w-2 h-2 rounded-full bg-amber-400 ring-4 ring-amber-400/10"></span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span class="text-2xl font-bold text-amber-300">{{ statusCounts.pending_review }}</span>
+                        <span class="text-[11px] text-slate-500">awaiting admin review</span>
+                    </div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">In discussion</span>
-                    <div class="text-2xl font-bold text-sky-300 mt-1.5">{{ statusCounts.in_discussion }}</div>
+                <div v-reveal="70" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-sky-500/30 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-sky-500/5 rounded-full blur-xl group-hover:bg-sky-500/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">In discussion</span>
+                        <span class="w-2 h-2 rounded-full bg-sky-400 ring-4 ring-sky-400/10"></span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span class="text-2xl font-bold text-sky-300">{{ statusCounts.in_discussion }}</span>
+                        <span class="text-[11px] text-slate-500">back-and-forth with client</span>
+                    </div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Awaiting payment</span>
-                    <div class="text-2xl font-bold text-rose-300 mt-1.5">{{ awaitingPaymentCount }}</div>
+                <div v-reveal="140" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-rose-500/30 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-rose-500/5 rounded-full blur-xl group-hover:bg-rose-500/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Awaiting payment</span>
+                        <span class="w-2 h-2 rounded-full bg-rose-400 ring-4 ring-rose-400/10"></span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span class="text-2xl font-bold text-rose-300">{{ awaitingPaymentCount }}</span>
+                        <span class="text-[11px] text-slate-500">50% down payment required</span>
+                    </div>
                 </div>
-                <div class="glass-panel rounded-xl p-4">
-                    <span class="text-xs font-medium text-slate-400">Approved</span>
-                    <div class="text-2xl font-bold text-emerald-300 mt-1.5">{{ statusCounts.approved }}</div>
+                <div v-reveal="210" class="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/30 transition-all">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl group-hover:bg-emerald-500/10 transition-all"></div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Approved</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 ring-4 ring-emerald-400/10"></span>
+                    </div>
+                    <div class="mt-3 flex items-baseline gap-2">
+                        <span class="text-2xl font-bold text-emerald-300">{{ statusCounts.approved }}</span>
+                        <span class="text-[11px] text-slate-500">ready for print</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Filters -->
-            <div class="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-                <div class="flex flex-wrap gap-1.5 p-1.5 rounded-xl bg-slate-900/60 border border-white/5">
-                    <button
-                        v-for="filter in statusFilters"
-                        :key="filter.value"
-                        type="button"
-                        class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
-                        :class="
-                            activeStatus === filter.value
-                                ? 'bg-indigo-600 text-white shadow-sm'
-                                : 'text-slate-400 hover:text-slate-200'
-                        "
-                        @click="activeStatus = filter.value"
-                    >
-                        {{ filter.label }}
-                    </button>
-                </div>
+            <!-- Status filter pills -->
+            <div v-reveal="140" class="flex flex-wrap gap-1.5 p-1.5 rounded-xl bg-slate-900/60 border border-white/5 w-fit">
+                <button
+                    v-for="filter in statusFilters"
+                    :key="filter.value"
+                    type="button"
+                    class="relative rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                    :class="
+                        activeStatus === filter.value
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                    "
+                    @click="activeStatus = filter.value"
+                >
+                    <span
+                        v-if="needsAttentionDot(filter.value)"
+                        class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"
+                        title="Needs your attention"
+                    ></span>
+                    {{ filter.label }}
+                </button>
+            </div>
 
-                <div class="relative w-full lg:w-72">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
-                        <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
-                    </span>
-                    <input
-                        id="design-requests-search"
-                        v-model="searchQuery"
-                        type="text"
-                        name="search"
-                        placeholder="Search design, team..."
-                        aria-label="Search design requests"
-                        class="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                </div>
+            <!-- Search -->
+            <div class="relative w-full">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 pointer-events-none">
+                    <font-awesome-icon icon="fa-solid fa-magnifying-glass" class="text-xs" />
+                </span>
+                <input
+                    id="design-requests-search"
+                    v-model="searchQuery"
+                    type="text"
+                    name="search"
+                    placeholder="Search design, team..."
+                    aria-label="Search design requests"
+                    class="w-full pl-8 pr-3 py-2.5 text-sm rounded-xl bg-slate-900/60 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                />
             </div>
 
             <!-- Date range + per-page -->
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="flex items-center gap-1.5">
-                    <label for="design-from" class="text-xs text-slate-500">From</label>
-                    <input
-                        id="design-from"
-                        v-model="dateFrom"
-                        type="date"
-                        name="dateFrom"
-                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <label for="design-to" class="text-xs text-slate-500">To</label>
-                    <input
-                        id="design-to"
-                        v-model="dateTo"
-                        type="date"
-                        name="dateTo"
-                        class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                </div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-1.5">
+                        <label for="design-from" class="text-xs text-slate-500">From</label>
+                        <input
+                            id="design-from"
+                            v-model="dateFrom"
+                            type="date"
+                            name="dateFrom"
+                            class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label for="design-to" class="text-xs text-slate-500">To</label>
+                        <input
+                            id="design-to"
+                            v-model="dateTo"
+                            type="date"
+                            name="dateTo"
+                            class="text-sm rounded-lg bg-slate-900/60 border border-white/10 text-slate-200 py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
 
-                <button
-                    v-if="hasActiveFilters"
-                    type="button"
-                    @click="clearFilters"
-                    class="flex items-center gap-1.5 text-xs font-medium text-rose-300 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg px-2.5 py-1.5 transition-colors"
-                >
-                    <font-awesome-icon icon="fa-solid fa-xmark" />
-                    Clear filters
-                </button>
+                    <button
+                        v-if="hasActiveFilters"
+                        type="button"
+                        @click="clearFilters"
+                        class="flex items-center gap-1.5 text-xs font-medium text-rose-300 border border-rose-500/25 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg px-2.5 py-1.5 transition-colors"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-xmark" />
+                        Clear filters
+                    </button>
+                </div>
 
                 <div class="flex items-center gap-1.5 ml-auto">
                     <label for="design-per-page" class="text-xs text-slate-500">Show</label>
@@ -440,7 +487,7 @@ function submitEdit() {
             </div>
 
             <!-- Table -->
-            <div class="glass-panel rounded-2xl overflow-hidden">
+            <div v-reveal="200" class="glass-panel rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -471,7 +518,7 @@ function submitEdit() {
                                         <img
                                             :src="row.template_image_url"
                                             :alt="row.template_name"
-                                            class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-slate-900 border border-white/10 p-1"
+                                            class="h-9 w-9 flex-shrink-0 rounded-lg object-contain bg-white border border-white/10 p-1"
                                         />
                                         <span class="font-semibold text-white">{{ row.template_name }}</span>
                                     </div>
@@ -585,22 +632,19 @@ function submitEdit() {
 
         <!-- Details Modal -->
         <Modal :show="modal.type.value === 'View'" @close="closeModal" :maxWidth="'5xl'">
-            <div v-if="selectedRequest" class="overflow-y-auto max-h-[90vh] px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <div class="flex items-center justify-between gap-2">
-                    <h2 class="text-base sm:text-lg font-semibold text-white truncate">
-                        <font-awesome-icon :icon="modal.icon.value" class="text-indigo-400" />
-                        {{ modal.title.value }}
-                    </h2>
-                    <SecondaryButton @click="closeModal" class="flex-shrink-0">
-                        <font-awesome-icon icon="fa-solid fa-xmark" />
-                    </SecondaryButton>
-                </div>
-                <hr class="my-3 border-white/10" />
-                <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:gap-3 justify-between">
+            <div v-if="selectedRequest" class="overflow-y-auto max-h-[90vh]">
+                <ModalHeader
+                    :icon="modal.icon.value"
+                    :title="modal.title.value"
+                    :subtitle="selectedRequest.team_name"
+                    @close="closeModal"
+                />
+                <div class="px-5 py-5 text-slate-200">
+                <div class="flex flex-col gap-4 sm:flex-row sm:gap-3 justify-between">
                     <div class="flex flex-col gap-3 border border-white/10 px-3 py-3 rounded-xl w-full bg-slate-900/40">
                         <p class="text-sm font-bold text-white text-center">Previous Design</p>
                         <div class="flex w-full flex-col items-center gap-2">
-                            <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
+                            <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white">
                                 <img
                                     v-if="selectedRequest.original_template_image"
                                     :src="selectedRequest.original_template_image"
@@ -614,7 +658,7 @@ function submitEdit() {
                     <div class="flex flex-col gap-3 border border-white/10 px-3 py-3 rounded-xl w-full bg-slate-900/40">
                         <p class="text-sm font-bold text-white text-center">Current Design</p>
                         <div class="flex w-full flex-col items-center gap-2">
-                            <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
+                            <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white">
                                 <img
                                     :src="selectedRequest.template_image_url"
                                     :alt="selectedRequest.template_name"
@@ -624,18 +668,47 @@ function submitEdit() {
                         </div>
                     </div>
                 </div>
+
+                <div class="mt-4 border border-white/10 rounded-xl p-3 bg-slate-900/40">
+                    <p class="text-sm font-bold text-white mb-2 flex items-center justify-between">
+                        <span>
+                            <font-awesome-icon icon="fa-solid fa-users" class="text-indigo-400" />
+                            Team Roster
+                        </span>
+                        <span class="text-xs font-normal text-slate-400">
+                            {{ selectedRequest.players?.length ?? 0 }} player{{ (selectedRequest.players?.length ?? 0) === 1 ? "" : "s" }}
+                        </span>
+                    </p>
+                    <div v-if="selectedRequest.players?.length" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                        <div
+                            v-for="p in selectedRequest.players"
+                            :key="p.id"
+                            class="flex items-center gap-2.5 p-2 rounded-lg bg-slate-950/40 border border-white/5"
+                        >
+                            <div class="w-7 h-7 rounded-full bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[11px] font-bold shrink-0">
+                                {{ p.number ?? "—" }}
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-white truncate">{{ p.name }}</p>
+                                <p class="text-[11px] text-slate-400">{{ [p.position, p.size].filter(Boolean).join(" • ") || "—" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-xs text-slate-500">No roster submitted yet.</p>
+                </div>
+                </div>
             </div>
         </Modal>
 
         <!-- Edit Modal -->
         <Modal :show="modal.type.value === 'Edit'" @close="closeModal" :maxWidth="'5xl'">
-            <form @submit.prevent="submitEdit" class="px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon icon="fa-solid fa-edit" class="text-indigo-400" />
-                    {{ modal.title.value }}
-                </h2>
-                <hr class="my-2 border-white/10" />
-                <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <ModalHeader
+                icon="fa-solid fa-edit"
+                :title="modal.title.value"
+                @close="closeModal"
+            />
+            <form @submit.prevent="submitEdit" class="px-5 py-5 text-slate-200">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium text-slate-300">Jersey Image</label>
                         <ImageUpload class="mt-1" :image="editImageStyle" @imageFile="onEditImageChange" />
@@ -694,8 +767,7 @@ function submitEdit() {
                     </div>
                 </div>
 
-                <hr class="mt-4 border-white/10" />
-                <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <div class="mt-5 pt-4 border-t border-white/10 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                     <SecondaryButton type="button" class="flex items-center justify-center" @click="closeModal()">
                         Cancel
                     </SecondaryButton>
@@ -718,15 +790,14 @@ function submitEdit() {
 
         <!-- Cancel Modal -->
         <Modal :show="modal.type.value === 'Cancel'" @close="closeModal()" :maxWidth="'sm'">
-            <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4 bg-surface-card text-slate-200">
-                <h2 class="text-lg font-semibold text-white">
-                    <font-awesome-icon :icon="modal.icon.value" class="text-rose-400" />
-                    {{ modal.title.value }}
-                </h2>
-
-                <div class="mt-6">
-                    <p class="text-slate-400">Are you sure you want to cancel this request?</p>
-                </div>
+            <ModalHeader
+                :icon="modal.icon.value"
+                icon-class="text-rose-400 bg-rose-500/15 border-rose-500/25"
+                :title="modal.title.value"
+                @close="closeModal()"
+            />
+            <div class="px-5 py-5 text-slate-200">
+                <p class="text-slate-400">Are you sure you want to cancel this request?</p>
 
                 <div class="mt-6 flex justify-between">
                     <SecondaryButton class="flex items-center" :disabled="cancelling" @click="closeModal()">
@@ -751,18 +822,14 @@ function submitEdit() {
 
         <!-- View Payment Modal -->
         <Modal :show="modal.type.value === 'Payment'" @close="closeModal" :maxWidth="'md'">
-            <div v-if="selectedRequest" class="overflow-y-auto px-4 pt-5 pb-4 sm:p-6 bg-surface-card text-slate-200">
-                <div class="flex items-center justify-between gap-2">
-                    <h2 class="text-base sm:text-lg font-semibold text-white">
-                        <font-awesome-icon :icon="modal.icon.value" class="text-emerald-400" />
-                        {{ modal.title.value }}
-                    </h2>
-                    <SecondaryButton type="button" @click="closeModal">
-                        <font-awesome-icon icon="fa-solid fa-xmark" />
-                    </SecondaryButton>
-                </div>
-                <hr class="my-3 border-white/10" />
-
+            <div v-if="selectedRequest" class="overflow-y-auto">
+                <ModalHeader
+                    :icon="modal.icon.value"
+                    icon-class="text-emerald-400 bg-emerald-500/15 border-emerald-500/25"
+                    :title="modal.title.value"
+                    @close="closeModal"
+                />
+                <div class="px-5 py-5 text-slate-200">
                 <div class="flex flex-col gap-4">
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-medium text-slate-300">Customer's GCash Number:</span>
@@ -807,6 +874,7 @@ function submitEdit() {
                             <font-awesome-icon icon="fa-solid fa-check" />
                         </PrimaryButton>
                     </div>
+                </div>
                 </div>
             </div>
         </Modal>
