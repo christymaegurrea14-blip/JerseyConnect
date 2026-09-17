@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\AdminMessageController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UserController;
 use App\Models\Jersey;
 use Illuminate\Support\Facades\Route;
@@ -83,6 +84,7 @@ Route::middleware(['auth', 'client'])->prefix('client')->name('client.')->group(
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard',[DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
 
     Route::resource('jersey', JerseyController::class)->only(['index']);
     Route::resource('design', AdminDesignRequestController::class)->only(['index']);

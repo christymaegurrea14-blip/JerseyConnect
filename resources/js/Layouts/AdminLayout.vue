@@ -57,6 +57,11 @@ const sidebarMenus = [
         icon: "fa-solid fa-box",
     },
     {
+        menuName: "Reports",
+        route: route("admin.reports"),
+        icon: "fa-solid fa-chart-line",
+    },
+    {
         menuName: "Messages",
         route: route("admin.messages.index"),
         icon: "fa-solid fa-envelope",
@@ -94,7 +99,7 @@ const sidebarMenus = [
 const byName = (...names) =>
     names.map((n) => sidebarMenus.find((m) => m.menuName === n)).filter(Boolean);
 
-const overviewMenus = byName("Dashboard", "Orders", "Messages");
+const overviewMenus = byName("Dashboard", "Orders", "Reports", "Messages");
 const catalogMenus = byName("Jersey Templates", "Designs");
 const adminMenus = byName("Couriers", "Gcash Details", "Users");
 
