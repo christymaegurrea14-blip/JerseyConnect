@@ -290,6 +290,20 @@ const submit = () => {
                     </div>
                 </div>
 
+                <label class="flex items-start gap-2.5 text-xs text-slate-400 leading-relaxed">
+                    <input
+                        type="checkbox"
+                        required
+                        class="mt-0.5 h-3.5 w-3.5 rounded border-white/20 bg-slate-950/70 text-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:ring-offset-0"
+                    />
+                    <span>
+                        I agree to PrintCode's
+                        <Link :href="route('legal')" target="_blank" class="text-indigo-300 hover:text-indigo-200 font-semibold transition-colors">
+                            Terms of Service &amp; Privacy Policy
+                        </Link>
+                    </span>
+                </label>
+
                 <button
                     type="submit"
                     :disabled="form.processing"

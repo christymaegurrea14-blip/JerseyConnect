@@ -19,6 +19,8 @@ use App\Models\Jersey;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::get('/legal', fn () => Inertia::render('Legal'))->name('legal');
+
 Route::get('/', function () {
     $jerseys = Jersey::query()
         ->where('status', 'active')
